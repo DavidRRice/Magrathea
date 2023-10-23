@@ -1004,12 +1004,11 @@ double EOS::density(double P, double T, double rho_guess)
          rhotable[highplowtind] * (Ptable[highplowtind] - P) * (T - temptable[lowplowtind]) +
          rhotable[highphightind] * (P - Ptable[lowplowtind]) * (T - temptable[lowplowtind])) /
         ((Ptable[highplowtind] - Ptable[lowplowtind]) * (temptable[lowphightind] - temptable[lowplowtind]));
-      cout<<P<<endl;
-      cout<<rho<<endl;
+      
       return rho;
     }
 
-    if(tabletype == 2)
+    else
     {
       status = gsl_spline_eval_e(spline, P, acc, &rho);
 
