@@ -8,16 +8,16 @@ struct timeval start_time, end_time;
 
 const double rho_eps_rel = 1E-11;	// relative error tolerance of the density solver
 const double T_eps_rel = 1E-11;	// relative error tolerance of the temperature solver for the adiabatic profile
-const double ode_eps_rel0 = 1E-7; // relative error tolerance for first round ode integrator (1E-7) used in mode 0
-const double ode_eps_rel1 = 1E-10; // relative error tolerance for second round ode integrator (1E-10) used in mode 0
+const double ode_eps_rel0 = 1E-3; // relative error tolerance for first round ode integrator (1E-7) used in mode 0
+const double ode_eps_rel1 = 1E-3; // relative error tolerance for second round ode integrator (1E-10) used in mode 0
 int fit_iter;
 const double R_eps_rel = 2E-5; // relative error tolerance in mode 0 first round radius determination (5E-5).  Should be around sqrt(ode_eps_rel0).
 const double ode_eps_rel2 = 1E-10; // relative error tolerance for ode integrator (1E-10) used in mode 1
 const double P_eps_rel = 1E-10;	// relative error tolerance in mode 1 central pressure determination (1E-10).  Should not be more restrict than ode_eps_rel.
 const double fit_eps_rel = 1E-4; // the relative error tolerance at the fitting point in mode 0 round 2 (1E-4). Should be four orders of magnitudes larger than ode_eps_rel1.
 vector<double> ave_rho = {15, 5, 2, 1E-3};// Assuming the density of the core is 15, mantle is 5, water is 2, and gas is 1E-3.
-const bool verbose = false;		  // Whether print warnings.
-const double P_surface = 1E5;		  // The pressure level that the broad band optical transit radius probes. (in microbar)
+const bool verbose = true;		  // Whether print warnings.
+const double P_surface = 1E7;		  // The pressure level that the broad band optical transit radius probes. (in microbar)
 int count_shoot = 0;			  // used to count the total number of shootings per each solution
 int count_step = 0;			  // used to count the sum of integral steps in all shooting results.
 
@@ -37,14 +37,14 @@ int main()
   if (input_mode == 0)
   {
     vector<PhaseDgm> Comp = {Fe, Si, water, atm};
-    vector<double> Tgap = {0, 0, 0, 300};
+    vector<double> Tgap = {0, 0, 0, 100};
     // The temperature of the outer boundary of the inner component minus the inner boundary of the outer component.  A positive number indicates temperature increases inward.  0 indicates the temperature is continuous at the boundary of components.  The last number is the planetary surface temperature.
-    vector<double> Mcomp =  {1.0,0.5,0.1,0.00001}; // Mass in Earth Masses of Core, Mantle, Hydrosphere, Atmosphere
+    vector<double> Mcomp =  {1,1,0.5,0.0}; // Mass in Earth Masses of Core, Mantle, Hydrosphere, Atmosphere
     planet=fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
     cout<<count_shoot<<' '<<count_step<<endl;
     if (!planet)
     {
-      for (uint i=0; i < Mcomp.size(); i++)
+      for (unsigned int i=0; i < Mcomp.size(); i++)
 	cout<<Mcomp[i]<<", ";
       cout<<"\t No solution found."<<endl;
     }
@@ -228,7 +228,7 @@ int main()
     }
     gettimeofday(&start_time,NULL);
   
-    fout<<"MCore, MMantle, MWater, MGas, RCore, RMantle, RWater, RPlanet"<<endl;
+    fout<<"MCore\t MMantle\t MWater\t MGas\t RCore\t RMantle\t RWater\t RPlanet"<<endl;
     cout<<"Percentage completed:"<<endl;
     for(int i=0; i<nline; i++)
     {
@@ -339,7 +339,7 @@ int main()
       return 1;
     }
 
-    fout<<"MPlanet, MCore, MMantle, MWater, RCore, RMantle, RWater, RPlanet, RPosterior"<<endl;
+    fout<<"MPlanet\t MCore\t MMantle\t MWater\t RCore\t RMantle\t RWater\t RPlanet\t RPosterior"<<endl;
 //    #pragma omp parallel for schedule(dynamic) num_threads(3) private(planet, Rs)   
     for(int i=0; i<nline; i++) // Loop for each posterior
     {
@@ -471,6 +471,7 @@ int main()
   delete Si_Liquid_Wolf;
   delete Si_Dummy;
   delete Ice_Seager;
+  delete Ice_AQUA;
   delete Water_ExoPlex;
   delete Water;
   delete IceIh_ExoPlex;

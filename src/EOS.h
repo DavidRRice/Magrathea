@@ -100,7 +100,7 @@ struct EOS
   double density(double V) {return mmol/V;}
   // return density in g/cm^3
   double volume(double rho){return mmol/rho;}
-  // return volume in g/cm^3, take density in g/cm^3
+  // return volume in cm^3/mol, take density in g/cm^3
   double density(double P1, double T1, double rho_guess, double P2, double &T2);
   // Given the pressure (cgs), temperature, density of the previous step, the pressure of the next step, return the temperature and density at the new pressure. This solver doesn't conserve the entropy well enough. Only used as an approximation in the first integration step from the core of the planet where dTdm has 0/0 limit.
 
@@ -112,7 +112,8 @@ private:
   int n, Z;
   bool Debye_approx;		       // Debye approximate or Einstein approximate.
   int thermal_type;		       // Indicates the thermal type of the phase.  0 indicates no temperature profile available, 1 indicates entropy method, 2 indicates the temperature gradient method, 3 indicates ideal gas, 4 indicates the EOS is fitted along the isentrope, 5 indicates no Theta0, 6 indicates has Theta 0 but no electron pressure, 7 indicates has electron pressure as well, type 8, RTpress style, type 9 thermal expansion
-  double *rhotable, *Ptable;	// density table in cgs, Ptable in GPa.
+  double *rhotable, *Ptable, *temptable, *entroptable;	// density, temperature, and entropy table in cgs, Ptable in GPa
+  int tabletype=1; //Table 2D or 3D
   int bn;				// number of indices of b
   double* b;				// fitted polynomial parameters of the thermal coefficients b(V) in erg/mol.  Convert eV/atom to erg/mol need to multiply eV_erg*n*NA. For example, for MgSiO3, 0.9821 eV/atom = 4.824E12 *0.9821 erg/mol = 4.738E12 erg/mol.
 
@@ -147,7 +148,7 @@ private:
 21.	cp_b, fitting coefficient for specific heat capacity, in 10^7 erg/g/K^2
 22.	cp_c, cp = cp_a + cp_b*T - cp_c/T^2. cp in 10^7 erg/g/K, cp_c in 10^7 erg*K/g
 23.	Debye_approx, whether use Debye approximation or Einstein approximation. Debye approximation is slower but more accurate at temperature lower than Debye/Einstein temperature.  Positive number for Debye, otherwise Einstein.
-24.     thermal_type, indicates the thermal type of the phase.  0 indicates no temperature profile available, 1 indicates entropy method, 2 indicates the temperature gradient method.  The only method to set the gradient is using the modify_extern_dTdP function, 3 indicates ideal gas, 4 indicates the EOS is fitted along the isentrope, type 8 indicates RTpress style .
+24.     thermal_type, indicates the thermal type of the phase.  0 indicates no temperature profile available, 1 indicates entropy method, 2 indicates the temperature gradient method.  The only method to set the gradient is using the modify_dTdP function, 3 indicates ideal gas, 4 indicates the EOS is fitted along the isentrope, type 8 indicates RTpress style .
 25-32.  at1-at4 & ap1 - ap4
 
 For RTpress style of EOS, also need a _b array. They are fitted polynomial parameters of the thermal coefficients b(V) in erg/mol.  Convert eV/atom to erg/mol need to multiply eV_erg*n*NA. For example, for MgSiO3, 0.9821 eV/atom = 4.824E12 *0.9821 erg/mol = 4.738E12 erg/mol.*/
