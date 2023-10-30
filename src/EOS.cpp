@@ -161,6 +161,8 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
   density_extern=NULL;
   entropy_extern=NULL;
   dTdP = NULL;
+  adiabattable=NULL;
+  temptable=NULL;
   
   if(!fin)
   {
@@ -922,26 +924,115 @@ double EOS::density(double P, double T, double rho_guess)
   else if(density_extern)
     return density_extern(P, T);
   
-  else if(eqntype == 7)		// interpolate an input file
+else if(eqntype == 7)		// interpolate an input file
   {
 
     P /= 1E10;
     double rho;
-    
-    status = gsl_spline_eval_e(spline, P, acc, &rho);
 
-    if(status == GSL_EDOM)
+    if(tabletype == 4) //Search for Rho in 3D table need Temp and Press
     {
-      if (verbose)
-	cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-      if(P < Ptable[0])
-	return rhotable[0];
+      vector<int> lowpressindex;
+      vector<int> highpressindex;
+      if(P<Ptable[0])
+      {
+        if (verbose)
+	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+        return rhotable[0]; //This should also search temperature and return right density, but do later
+      }
+      else if(P>Ptable[nline-1])
+      {
+        if (verbose)
+	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+        return rhotable[nline]; //This should also search temperature and return right density, but do later
+      }
       else
-	return rhotable[nline-1];
-    }
-    else	
+      {
+        for(int i=0;i<nline;i++) 
+        {
+          if(P-Ptable[i]>=0)
+          {
+            if(i==0)
+              lowpressindex.push_back(i);
+            else if(Ptable[i]==Ptable[i-1])
+              lowpressindex.push_back(i);
+            else{
+              lowpressindex.clear();
+              lowpressindex.push_back(i);
+            }
+          }
+          else{
+            if(highpressindex.empty())
+              highpressindex.push_back(i);
+            else if(Ptable[i]==Ptable[i-1])
+              highpressindex.push_back(i);
+            else
+              break;
+          }
+        }
+      }
+
+      if(T<temptable[lowpressindex[0]])
+      {
+        if (verbose)
+	        cout<<"Warning: Temperature "<<T<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+        return rhotable[lowpressindex[0]]; //This should also search temperature and return right density, but do later
+      }
+      else if(T>temptable[lowpressindex.back()])
+      {
+        if (verbose)
+	        cout<<"Warning: Temperature "<<T<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+        return rhotable[lowpressindex.back()]; //This should also search temperature and return right density, but do later
+      }
+      else
+      {
+        for(int i:lowpressindex) 
+        {
+          if(T-temptable[i]<0)
+          {
+            lowplowtind=i-1;
+            lowphightind=i;
+            break;
+          }
+        }
+        for(int i:highpressindex) 
+        {
+          if(T-temptable[i]<0)
+          {
+            highplowtind=i-1;
+            highphightind=i;
+            break;
+          }
+        }
+      }   
+      rho =
+        (rhotable[lowplowtind] * (Ptable[highplowtind] - P) * (temptable[lowphightind] - T) +
+         rhotable[lowphightind] * (P - Ptable[lowplowtind]) * (temptable[lowphightind] - T) +
+         rhotable[highplowtind] * (Ptable[highplowtind] - P) * (T - temptable[lowplowtind]) +
+         rhotable[highphightind] * (P - Ptable[lowplowtind]) * (T - temptable[lowplowtind])) /
+        ((Ptable[highplowtind] - Ptable[lowplowtind]) * (temptable[lowphightind] - temptable[lowplowtind]));
+      cout<<rho<<endl;
       return rho;
+    }
+
+    else
+    {
+      status = gsl_spline_eval_e(spline, P, acc, &rho);
+
+      if(status == GSL_EDOM)
+      {
+        if (verbose)
+	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+        if(P < Ptable[0])
+	        return rhotable[0];
+        else
+	        return rhotable[nline-1];
+      }
+      else	
+        return rho;
+    }
   }
+
 
   else if(eqntype == 6)		// ideal gas
   {
@@ -1248,7 +1339,6 @@ double EOS::Press(double rho, double T)
 {
   double P;
   double V = volume(rho);	// volume in cm^3/mol
-
   switch(geteqntype())
   {
   case 0:			// BM3
@@ -1472,6 +1562,7 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
   {
     P /= 1E10;
     double adiabat;
+    
     adiabat =
       (adiabattable[lowplowtind] * (Ptable[highplowtind] - P) * (temptable[lowphightind] - T) +
       adiabattable[lowphightind] * (P - Ptable[lowplowtind]) * (temptable[lowphightind] - T) +
