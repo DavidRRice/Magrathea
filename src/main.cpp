@@ -8,15 +8,15 @@ struct timeval start_time, end_time;
 
 const double rho_eps_rel = 1E-11;	// relative error tolerance of the density solver
 const double T_eps_rel = 1E-11;	// relative error tolerance of the temperature solver for the adiabatic profile
-const double ode_eps_rel0 = 1E-3; // relative error tolerance for first round ode integrator (1E-7) used in mode 0
-const double ode_eps_rel1 = 1E-3; // relative error tolerance for second round ode integrator (1E-10) used in mode 0
+const double ode_eps_rel0 = 1E-7; // relative error tolerance for first round ode integrator (1E-7) used in mode 0
+const double ode_eps_rel1 = 1E-10; // relative error tolerance for second round ode integrator (1E-10) used in mode 0
 int fit_iter;
 const double R_eps_rel = 2E-5; // relative error tolerance in mode 0 first round radius determination (5E-5).  Should be around sqrt(ode_eps_rel0).
 const double ode_eps_rel2 = 1E-10; // relative error tolerance for ode integrator (1E-10) used in mode 1
 const double P_eps_rel = 1E-10;	// relative error tolerance in mode 1 central pressure determination (1E-10).  Should not be more restrict than ode_eps_rel.
 const double fit_eps_rel = 1E-4; // the relative error tolerance at the fitting point in mode 0 round 2 (1E-4). Should be four orders of magnitudes larger than ode_eps_rel1.
 vector<double> ave_rho = {15, 5, 2, 1E-3};// Assuming the density of the core is 15, mantle is 5, water is 2, and gas is 1E-3.
-const bool verbose = true;		  // Whether print warnings.
+const bool verbose = false;		  // Whether print warnings.
 const double P_surface = 1E7;		  // The pressure level that the broad band optical transit radius probes. (in microbar)
 int count_shoot = 0;			  // used to count the total number of shootings per each solution
 int count_step = 0;			  // used to count the sum of integral steps in all shooting results.
@@ -37,10 +37,17 @@ int main()
   if (input_mode == 0)
   {
     vector<PhaseDgm> Comp = {Fe, Si, water, atm};
-    vector<double> Tgap = {0, 0, 0, 100};
+    vector<double> Tgap = {0, 0, 0, 150};
     // The temperature of the outer boundary of the inner component minus the inner boundary of the outer component.  A positive number indicates temperature increases inward.  0 indicates the temperature is continuous at the boundary of components.  The last number is the planetary surface temperature.
-    vector<double> Mcomp =  {1,1,0.5,0.0}; // Mass in Earth Masses of Core, Mantle, Hydrosphere, Atmosphere
+    vector<double> Mcomp =  {0.0,1.0,1.0,0.0}; // Mass in Earth Masses of Core, Mantle, Hydrosphere, Atmosphere
+    double deltat;
+    gettimeofday(&start_time,NULL);
     planet=fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
+    gettimeofday(&end_time, NULL);
+  
+    deltat = ((end_time.tv_sec  - start_time.tv_sec) * 1000000u + end_time.tv_usec - start_time.tv_usec) / 1.e6;
+
+    cout<<"running time "<<deltat<<'s'<<endl;
     cout<<count_shoot<<' '<<count_step<<endl;
     if (!planet)
     {
@@ -49,7 +56,7 @@ int main()
       cout<<"\t No solution found."<<endl;
     }
     else
-      planet->print("./result/Structure.txt", true); // Save the result in an asc file with this name.
+      planet->print("./result/AQUA150.txt", true); // Save the result in an asc file with this name.
 
     delete planet;
   }  

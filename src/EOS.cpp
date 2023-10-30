@@ -1,29 +1,17 @@
 #include "EOS.h"
 
-EOS::EOS():phasetype(""),eqntype(0), V0(numeric_limits<double>::quiet_NaN()), K0(numeric_limits<double>::quiet_NaN()), K0p(numeric_limits<double>::quiet_NaN()), K0pp(numeric_limits<double>::quiet_NaN()), mmol(numeric_limits<double>::quiet_NaN()), P0(0), Theta0(numeric_limits<double>::quiet_NaN()), gamma0(numeric_limits<double>::quiet_NaN()), beta(numeric_limits<double>::quiet_NaN()), gammainf(numeric_limits<double>::quiet_NaN()), gamma0p(numeric_limits<double>::quiet_NaN()), e0(numeric_limits<double>::quiet_NaN()), g(numeric_limits<double>::quiet_NaN()), T0(300), alpha0(numeric_limits<double>::quiet_NaN()), alpha1(0), xi(0), cp_a(numeric_limits<double>::quiet_NaN()), cp_b(0), cp_c(0), at1(numeric_limits<double>::quiet_NaN()), at2(numeric_limits<double>::quiet_NaN()), at3(numeric_limits<double>::quiet_NaN()), at4(numeric_limits<double>::quiet_NaN()), ap1(numeric_limits<double>::quiet_NaN()), ap2(numeric_limits<double>::quiet_NaN()), ap3(numeric_limits<double>::quiet_NaN()), ap4(numeric_limits<double>::quiet_NaN()), n(-1), Z(-1), Debye_approx(false), thermal_type(0), rhotable(NULL), Ptable(NULL), bn(0), acc(NULL), spline(NULL), nline(0)
+EOS::EOS():phasetype(""),eqntype(0), V0(numeric_limits<double>::quiet_NaN()), K0(numeric_limits<double>::quiet_NaN()), K0p(numeric_limits<double>::quiet_NaN()), K0pp(numeric_limits<double>::quiet_NaN()), mmol(numeric_limits<double>::quiet_NaN()), P0(0), Theta0(numeric_limits<double>::quiet_NaN()), gamma0(numeric_limits<double>::quiet_NaN()), beta(numeric_limits<double>::quiet_NaN()), gammainf(numeric_limits<double>::quiet_NaN()), gamma0p(numeric_limits<double>::quiet_NaN()), e0(numeric_limits<double>::quiet_NaN()), g(numeric_limits<double>::quiet_NaN()), T0(300), alpha0(numeric_limits<double>::quiet_NaN()), alpha1(0), xi(0), cp_a(numeric_limits<double>::quiet_NaN()), cp_b(0), cp_c(0), at1(numeric_limits<double>::quiet_NaN()), at2(numeric_limits<double>::quiet_NaN()), at3(numeric_limits<double>::quiet_NaN()), at4(numeric_limits<double>::quiet_NaN()), ap1(numeric_limits<double>::quiet_NaN()), ap2(numeric_limits<double>::quiet_NaN()), ap3(numeric_limits<double>::quiet_NaN()), ap4(numeric_limits<double>::quiet_NaN()), n(-1), Z(-1), Debye_approx(false), thermal_type(0), rhotable(NULL), Ptable(NULL), temptable(NULL), adiabattable(NULL), bn(0), acc(NULL), spline(NULL), nline(0)
 {
   density_extern=NULL;
   entropy_extern=NULL;
   dTdP = NULL;
-  rhotable = NULL;
-  Ptable = NULL;
-  temptable = NULL;
-  entroptable = NULL;
-  acc = NULL;
-  spline = NULL;
 }
 
-EOS::EOS(string phaseinput, double params[][2], int length):phasetype(phaseinput),eqntype(0), V0(numeric_limits<double>::quiet_NaN()), K0(numeric_limits<double>::quiet_NaN()), K0p(numeric_limits<double>::quiet_NaN()), K0pp(numeric_limits<double>::quiet_NaN()), mmol(numeric_limits<double>::quiet_NaN()), P0(0), Theta0(numeric_limits<double>::quiet_NaN()), gamma0(numeric_limits<double>::quiet_NaN()), beta(numeric_limits<double>::quiet_NaN()), gammainf(numeric_limits<double>::quiet_NaN()), gamma0p(numeric_limits<double>::quiet_NaN()), e0(numeric_limits<double>::quiet_NaN()), g(numeric_limits<double>::quiet_NaN()), T0(300), alpha0(numeric_limits<double>::quiet_NaN()), alpha1(0), xi(0), cp_a(numeric_limits<double>::quiet_NaN()), cp_b(0), cp_c(0), at1(numeric_limits<double>::quiet_NaN()), at2(numeric_limits<double>::quiet_NaN()), at3(numeric_limits<double>::quiet_NaN()), at4(numeric_limits<double>::quiet_NaN()), ap1(numeric_limits<double>::quiet_NaN()), ap2(numeric_limits<double>::quiet_NaN()), ap3(numeric_limits<double>::quiet_NaN()), ap4(numeric_limits<double>::quiet_NaN()), n(-1), Z(-1), Debye_approx(false), thermal_type(0), rhotable(NULL), Ptable(NULL), bn(0), acc(NULL), spline(NULL), nline(0)
+EOS::EOS(string phaseinput, double params[][2], int length):phasetype(phaseinput),eqntype(0), V0(numeric_limits<double>::quiet_NaN()), K0(numeric_limits<double>::quiet_NaN()), K0p(numeric_limits<double>::quiet_NaN()), K0pp(numeric_limits<double>::quiet_NaN()), mmol(numeric_limits<double>::quiet_NaN()), P0(0), Theta0(numeric_limits<double>::quiet_NaN()), gamma0(numeric_limits<double>::quiet_NaN()), beta(numeric_limits<double>::quiet_NaN()), gammainf(numeric_limits<double>::quiet_NaN()), gamma0p(numeric_limits<double>::quiet_NaN()), e0(numeric_limits<double>::quiet_NaN()), g(numeric_limits<double>::quiet_NaN()), T0(300), alpha0(numeric_limits<double>::quiet_NaN()), alpha1(0), xi(0), cp_a(numeric_limits<double>::quiet_NaN()), cp_b(0), cp_c(0), at1(numeric_limits<double>::quiet_NaN()), at2(numeric_limits<double>::quiet_NaN()), at3(numeric_limits<double>::quiet_NaN()), at4(numeric_limits<double>::quiet_NaN()), ap1(numeric_limits<double>::quiet_NaN()), ap2(numeric_limits<double>::quiet_NaN()), ap3(numeric_limits<double>::quiet_NaN()), ap4(numeric_limits<double>::quiet_NaN()), n(-1), Z(-1), Debye_approx(false), thermal_type(0), rhotable(NULL), Ptable(NULL), temptable(NULL), adiabattable(NULL), bn(0), acc(NULL), spline(NULL), nline(0)
 {
   density_extern=NULL;
   entropy_extern=NULL;
   dTdP = NULL;
-  rhotable = NULL;
-  Ptable = NULL;
-  temptable = NULL;
-  entroptable = NULL;
-  acc = NULL;
-  spline = NULL;
   
   for(int i=0;i<length;i++)
   {
@@ -168,17 +156,11 @@ EOS::EOS(string phaseinput, double params[][2], int length):phasetype(phaseinput
 EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V0(numeric_limits<double>::quiet_NaN()), K0(numeric_limits<double>::quiet_NaN()), K0p(numeric_limits<double>::quiet_NaN()), K0pp(numeric_limits<double>::quiet_NaN()), mmol(numeric_limits<double>::quiet_NaN()), P0(0), Theta0(numeric_limits<double>::quiet_NaN()), gamma0(numeric_limits<double>::quiet_NaN()), beta(numeric_limits<double>::quiet_NaN()), gammainf(numeric_limits<double>::quiet_NaN()), gamma0p(numeric_limits<double>::quiet_NaN()), e0(numeric_limits<double>::quiet_NaN()), g(numeric_limits<double>::quiet_NaN()), T0(300), alpha0(numeric_limits<double>::quiet_NaN()), alpha1(0), xi(0), cp_a(numeric_limits<double>::quiet_NaN()), cp_b(0), cp_c(0), at1(numeric_limits<double>::quiet_NaN()), at2(numeric_limits<double>::quiet_NaN()), at3(numeric_limits<double>::quiet_NaN()), at4(numeric_limits<double>::quiet_NaN()), ap1(numeric_limits<double>::quiet_NaN()), ap2(numeric_limits<double>::quiet_NaN()), ap3(numeric_limits<double>::quiet_NaN()), ap4(numeric_limits<double>::quiet_NaN()), n(-1), Z(-1), Debye_approx(false), thermal_type(0), bn(0)
 {
   ifstream fin;
-  string sline = "";
+  string sline;
   fin.open(filename.c_str());
   density_extern=NULL;
   entropy_extern=NULL;
   dTdP = NULL;
-  rhotable = NULL;
-  Ptable = NULL;
-  temptable = NULL;
-  entroptable = NULL;
-  acc = NULL;
-  spline = NULL;
   
   if(!fin)
   {
@@ -215,16 +197,18 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
 
   if(tabletype==4) //Pressure Temperature Density Entropy Table
   {
+    mmol=18.01528;
     rhotable=new double[nline];
     Ptable=new double[nline];
     temptable=new double[nline];
-    entroptable=new double[nline];
+    adiabattable=new double[nline];
+    thermal_type=2;
     
-    fin>>Ptable[0]>>temptable[0]>>rhotable[0]>>entroptable[0];
+    fin>>Ptable[0]>>temptable[0]>>rhotable[0]>>adiabattable[0];
     fin.seekg(beginpos);
 
     for(int i=0; i<nline; i++)
-      fin>>Ptable[i]>>temptable[i]>>rhotable[i]>>entroptable[i];
+      fin>>Ptable[i]>>temptable[i]>>rhotable[i]>>adiabattable[i];
   
     fin.close();
   }  
@@ -262,21 +246,13 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
 
 }
 
-
 EOS::EOS(string phaseinput, double (*f)(double P, double T), double (*g)(double rho, double T)):phasetype(phaseinput),eqntype(0), V0(numeric_limits<double>::quiet_NaN()), K0(numeric_limits<double>::quiet_NaN()), K0p(numeric_limits<double>::quiet_NaN()), K0pp(numeric_limits<double>::quiet_NaN()), mmol(numeric_limits<double>::quiet_NaN()), P0(0), Theta0(numeric_limits<double>::quiet_NaN()), gamma0(numeric_limits<double>::quiet_NaN()), beta(numeric_limits<double>::quiet_NaN()), gammainf(numeric_limits<double>::quiet_NaN()), gamma0p(numeric_limits<double>::quiet_NaN()), e0(numeric_limits<double>::quiet_NaN()), g(numeric_limits<double>::quiet_NaN()), T0(300), alpha0(numeric_limits<double>::quiet_NaN()), alpha1(0), xi(0), cp_a(numeric_limits<double>::quiet_NaN()), cp_b(0), cp_c(0), at1(numeric_limits<double>::quiet_NaN()), at2(numeric_limits<double>::quiet_NaN()), at3(numeric_limits<double>::quiet_NaN()), at4(numeric_limits<double>::quiet_NaN()), ap1(numeric_limits<double>::quiet_NaN()), ap2(numeric_limits<double>::quiet_NaN()), ap3(numeric_limits<double>::quiet_NaN()), ap4(numeric_limits<double>::quiet_NaN()), n(-1), Z(-1), Debye_approx(false), rhotable(NULL), Ptable(NULL),  bn(0), acc(NULL), spline(NULL), nline(0)
 {
-  density_extern=NULL;
-  entropy_extern=NULL;
-  dTdP = NULL;
-  rhotable = NULL;
-  Ptable = NULL;
-  temptable = NULL;
-  entroptable = NULL;
-  acc = NULL;
-  spline = NULL;
-
   density_extern=f;
   entropy_extern=g;
+  dTdP = NULL;
+  temptable = NULL;
+  adiabattable = NULL;
 
   if (entropy_extern)
     thermal_type = 1;
@@ -289,17 +265,10 @@ EOS::EOS(string phaseinput, double *Plist, double *rholist, int len_list):phaset
   density_extern=NULL;
   entropy_extern=NULL;
   dTdP = NULL;
-  rhotable = NULL;
-  Ptable = NULL;
   temptable = NULL;
-  entroptable = NULL;
-  acc = NULL;
-  spline = NULL;
-
+  adiabattable = NULL;
   rhotable=new double[nline];
   Ptable=new double[nline];
-  temptable = NULL;
-  entroptable = NULL;
 
   // grl interpolation require strictly increasing x.  Reverse the array order if x is decreasing.
   
@@ -327,12 +296,8 @@ EOS::EOS(string phaseinput, double params[][2], double bparams[], int length, in
   density_extern=NULL;
   entropy_extern=NULL;
   dTdP = NULL;
-  rhotable = NULL;
-  Ptable = NULL;
   temptable = NULL;
-  entroptable = NULL;
-  acc = NULL;
-  spline = NULL;
+  adiabattable = NULL;
   
   for(int i=0;i<length;i++)
   {
@@ -464,8 +429,8 @@ EOS::~EOS()
     delete[] Ptable;
   if(temptable)
     delete[] temptable;
-  if(entroptable)
-    delete[] entroptable;
+  if(adiabattable)
+    delete[] adiabattable;
   if(spline)
     gsl_spline_free (spline);
   if(acc)
@@ -962,109 +927,20 @@ double EOS::density(double P, double T, double rho_guess)
 
     P /= 1E10;
     double rho;
+    
+    status = gsl_spline_eval_e(spline, P, acc, &rho);
 
-    if(tabletype == 4) //Search for Rho in 3D table need Temp and Press
+    if(status == GSL_EDOM)
     {
-      vector<int> lowpressindex;
-      vector<int> highpressindex;
-      if(P<Ptable[0])
-      {
-        if (verbose)
-	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-        return rhotable[0]; //This should also search temperature and return right density, but do later
-      }
-      else if(P>Ptable[nline-1])
-      {
-        if (verbose)
-	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-        return rhotable[nline]; //This should also search temperature and return right density, but do later
-      }
+      if (verbose)
+	cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+      if(P < Ptable[0])
+	return rhotable[0];
       else
-      {
-        for(int i=0;i<nline;i++) 
-        {
-          if(P-Ptable[i]>=0)
-          {
-            if(i==0)
-              lowpressindex.push_back(i);
-            else if(Ptable[i]==Ptable[i-1])
-              lowpressindex.push_back(i);
-            else{
-              lowpressindex.clear();
-              lowpressindex.push_back(i);
-            }
-          }
-          else{
-            if(highpressindex.empty())
-              highpressindex.push_back(i);
-            else if(Ptable[i]==Ptable[i-1])
-              highpressindex.push_back(i);
-            else
-              break;
-          }
-        }
-      }
-
-      int lowplowtind=0, lowphightind=0, highplowtind=0, highphightind=0;
-      if(T<temptable[lowpressindex[0]])
-      {
-        if (verbose)
-	        cout<<"Warning: Temperature "<<T<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-        return rhotable[lowpressindex[0]]; //This should also search temperature and return right density, but do later
-      }
-      else if(T>temptable[lowpressindex.back()])
-      {
-        if (verbose)
-	        cout<<"Warning: Temperature "<<T<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-        return rhotable[lowpressindex.back()]; //This should also search temperature and return right density, but do later
-      }
-      else
-      {
-        for(int i:lowpressindex) 
-        {
-          if(T-temptable[i]<0)
-          {
-            lowplowtind=i-1;
-            lowphightind=i;
-            break;
-          }
-        }
-        for(int i:highpressindex) 
-        {
-          if(T-temptable[i]<0)
-          {
-            highplowtind=i-1;
-            highphightind=i;
-            break;
-          }
-        }
-      }   
-      rho =
-        (rhotable[lowplowtind] * (Ptable[highplowtind] - P) * (temptable[lowphightind] - T) +
-         rhotable[lowphightind] * (P - Ptable[lowplowtind]) * (temptable[lowphightind] - T) +
-         rhotable[highplowtind] * (Ptable[highplowtind] - P) * (T - temptable[lowplowtind]) +
-         rhotable[highphightind] * (P - Ptable[lowplowtind]) * (T - temptable[lowplowtind])) /
-        ((Ptable[highplowtind] - Ptable[lowplowtind]) * (temptable[lowphightind] - temptable[lowplowtind]));
-      
+	return rhotable[nline-1];
+    }
+    else	
       return rho;
-    }
-
-    else
-    {
-      status = gsl_spline_eval_e(spline, P, acc, &rho);
-
-      if(status == GSL_EDOM)
-      {
-        if (verbose)
-	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-        if(P < Ptable[0])
-	        return rhotable[0];
-        else
-	        return rhotable[nline-1];
-      }
-      else	
-        return rho;
-    }
   }
 
   else if(eqntype == 6)		// ideal gas
@@ -1592,7 +1468,19 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
     double gamma = adiabatic_index();
     return - (gamma-1)*T/(gamma*P);
   }
-
+  if(eqntype==7) //tabular
+  {
+    P /= 1E10;
+    double adiabat;
+    adiabat =
+      (adiabattable[lowplowtind] * (Ptable[highplowtind] - P) * (temptable[lowphightind] - T) +
+      adiabattable[lowphightind] * (P - Ptable[lowplowtind]) * (temptable[lowphightind] - T) +
+      adiabattable[highplowtind] * (Ptable[highplowtind] - P) * (T - temptable[lowplowtind]) +
+      adiabattable[highphightind] * (P - Ptable[lowplowtind]) * (T - temptable[lowplowtind])) /
+      ((Ptable[highplowtind] - Ptable[lowplowtind]) * (temptable[lowphightind] - temptable[lowplowtind]));
+    
+    return adiabat/1E10;  
+  }
   rho_guess = density(P*1E10, T, rho_guess);
   double V = volume(rho_guess);
   double dTdV = dTdV_S(V, P, T);
