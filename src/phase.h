@@ -36,6 +36,7 @@ private:
 EOS* find_water_phase(double P, double T);
 // input P in cgs
 
+EOS* find_water_phase_tabular(double P, double T);
 
 EOS* find_Fe_phase(double P, double T);
 

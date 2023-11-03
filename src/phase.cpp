@@ -245,10 +245,95 @@ double dunaeva_phase_curve(double P, double a, double b, double c, double d, dou
   }
   return a + b*P + c*log(P) + d/P + e*sqrt(P);
 }
-  
+
 // ---------------------------------
-// Phase Diagram for Hydrosphere
+// Default Phase Diagram for Hydrosphere
 EOS* find_water_phase(double P, double T)
+// input P in cgs
+{
+  P /= 1E10;			// convert microbar to GPa
+  double Tt1, Tt2;
+  if (P <= 0 || T <= 0)
+  {
+    return NULL;
+  }
+  //Default Hydrosphere
+  if( P < 0.208566 )		// liquid water or Ice Ih (Dunaeva et al. 2010)
+  {
+    Tt1 = dunaeva_phase_curve(P, 273.0159, -0.0132, -0.1577, 0, 0.1516);
+    if (!gsl_finite(Tt1))
+    {
+      cout<<"Error: Can't find the phase of H2O at P="<<P<<" GPa and T="<<T<<" K."<<endl;
+      return NULL;
+    }
+    if(T > Tt1)
+      return Water;
+    else
+      return IceIh;
+  }
+
+  else if( P < 0.6324 )		// liquid water or Ice II, III, V
+  {
+    Tt1 = dunaeva_phase_curve(P, 10.277, 0.0265, 50.1624, 0.5868, -4.3288);
+    Tt2 = dunaeva_phase_curve(P, 5.0321, -0.0004, 30.9482, 1.0018, 0);
+    if (!gsl_finite(Tt1) || !gsl_finite(Tt2))
+    {
+      cout<<"Error: Can't find the phase of H2O at P="<<P<<" GPa and T="<<T<<" K."<<endl;
+      return NULL;
+    }
+    if( (P < 0.3501 && T > Tt1) || (P >= 0.3501 && T > Tt2))
+      return Water;
+    else
+    {
+      return Ice_Dummy;
+    }
+  }
+  
+  else if(P < 2.216)		// liquid water or Ice VI, VII
+  {
+    Tt1 = dunaeva_phase_curve(P, 4.2804, -0.0013, 21.8756, 1.0018, 1.0785);
+    Tt2 = dunaeva_phase_curve(P, -47.8507, 0, -389.006, 0.9932, 28.8539);
+    if (!gsl_finite(Tt1) || !gsl_finite(Tt2))
+    {
+      cout<<"Error: Can't find the phase of H2O at P="<<P<<" GPa and T="<<T<<" K."<<endl;
+      return NULL;
+    }
+    if(T > Tt1)
+      return Water;
+    else if(T > Tt2)
+      return IceVI_Bezacier;
+      
+    else
+      return IceVII_Bezacier;
+      //return IceVII_FFH2004;  // Examples of choosing other EOSs
+      //return IceVII;
+      //return IceZeng2013FFH;
+  }
+
+  else if(P < 5.10)		// liquid water or Ice VII.
+  {
+    if(T>1200)			// A dummy melting curve to avoid ice VII EOS extrapolated to temperature too high.
+      return Water_sc_dummy;
+    else
+      return IceVII_Bezacier;
+  }
+    
+  else if(P < 30.9)		// liquid water or Ice VII'.
+  {
+    if(T>1200)			// A dummy melting curve to avoid Ice VII EOS extrapolated to temperature too high.
+      return Water_sc_dummy;
+    else
+      //return IceVIIp;         //Region of possible transitional Ice VII' reported in Grande not used in default
+      return IceVII_Bezacier;
+  }  
+  else				// liquid water or Ice X. The melting curve is so uncertain. Assuming all ice above 30.9 GPa.
+    return IceX;
+} 
+ 
+
+// ---------------------------------
+// Tabular Phase Diagram for Hydrosphere
+EOS* find_water_phase_tabular(double P, double T)
 // input P in cgs
 {
   P /= 1E10;			// convert microbar to GPa
@@ -257,6 +342,7 @@ EOS* find_water_phase(double P, double T)
   {
     return NULL;
   }
+
   return Ice_AQUA;
   //Default Hydrosphere
 } 
@@ -352,14 +438,15 @@ EOS* find_gas_phase(double P, double T)
   {
     return NULL;
   }
+  return Gas_hhe;
   // Isothermal gas for P less than 100 bar, the radiative/convective boundary (Nixon & Madhusudhan 2021). Adiabatic idea gas for P > 100 bar.
-  else if (P < 1E8)
-    return Gas_iso;
-  else
-    return Gas;
+  //else if (P < 1E8)
+  //  return Gas_iso;
+  //else
+  //  return Gas;
 }
 
-PhaseDgm water("water", find_water_phase);
+PhaseDgm water("water", find_water_phase_tabular);
 PhaseDgm Fe("core", find_Fe_phase);
 PhaseDgm Si("mantle", find_Si_phase);
 PhaseDgm atm("atm", find_gas_phase);

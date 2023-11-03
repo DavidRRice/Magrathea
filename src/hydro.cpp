@@ -118,7 +118,7 @@ int derivs_m3(double x, const double y[], double dydx[], void * params)
   vector<double> M = p -> M;
   EOS *Phase = p -> Phase;
   rho = Phase -> density(y[1], y[2], rho);
-
+  
   if (!gsl_finite(rho)) 
   {
     if (verbose)
