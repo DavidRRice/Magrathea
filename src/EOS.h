@@ -4,6 +4,8 @@
 #include "define.h"
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_spline.h>
+#include <gsl/gsl_interp2d.h>
+#include <gsl/gsl_spline2d.h>
 #include <gsl/gsl_deriv.h>
 
 extern const double mu;
@@ -118,9 +120,13 @@ private:
   int bn;				// number of indices of b
   double* b;				// fitted polynomial parameters of the thermal coefficients b(V) in erg/mol.  Convert eV/atom to erg/mol need to multiply eV_erg*n*NA. For example, for MgSiO3, 0.9821 eV/atom = 4.824E12 *0.9821 erg/mol = 4.738E12 erg/mol.
 
-  gsl_interp_accel *acc; // The gsl interpolation accelerator.
+  gsl_interp_accel *accP; // The gsl interpolation accelerator.
+  gsl_interp_accel *accT; // The gsl interpolation accelerator.
   gsl_spline *spline; // The gsl workspace objects
+  gsl_spline2d *spline2drho;
+  gsl_spline2d *spline2dadi;
   int nline;
+  int tlen;
   
 /*
   phasetype is the name of a phase. The comment about the EOS used for the phase should be in the parentheses separated by a space.

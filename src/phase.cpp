@@ -344,7 +344,6 @@ EOS* find_water_phase_tabular(double P, double T)
   }
 
   return Ice_AQUA;
-  //Default Hydrosphere
 } 
  
 // ---------------------------------
