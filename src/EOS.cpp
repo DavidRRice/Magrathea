@@ -189,6 +189,7 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
       }   
     }  
 
+
   while(getline(fin,sline))
   {
    if(!sline.empty())
@@ -197,13 +198,13 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
   fin.clear();
   fin.seekg(beginpos);
 
-  if(tabletype==4) //Pressure Temperature Density Entropy Table
+  if(tabletype==4) //Pressure, Temperature, Density, Adiabatic Gradiant Table
   {
     tlen=0;
     float ptemp=0, ptemp1, ttemp, rhotemp,adiabattemp;
     for(int i=0; i<nline; i++){
-      fin>>ptemp1>>ttemp>>rhotemp>>adiabattemp;
-      if(ptemp1!=ptemp && tlen>0)
+      fin>>ptemp1>>ttemp>>rhotemp>>adiabattemp; 
+      if(ptemp1!=ptemp && tlen>0)   //Table must be ordered by (i, j) for i in P for j in T
         break;
       else{
         tlen++;
@@ -213,8 +214,12 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
     fin.clear();
     fin.seekg(beginpos);
     if(nline % tlen != 0)
-      cout<<"Warning: The input EOS file "<<filename<<" is not rectangular"<<endl;
-
+    {
+      if (verbose)
+        cout<<"Warning: The input EOS file "<<filename<<" is not rectangular"<<endl;
+      return;
+    }
+      
     rhotable=new double[nline-1];
     Ptable=new double[nline/tlen-1];
     temptable=new double[tlen-1];
@@ -230,15 +235,21 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
       }
       else if(i%tlen==0){
         Ptable[i/tlen]=ptemp;
-        //cout<<i/tlen<<endl;
       }
     }
     fin.close();
 
+    if(Ptable[1]<Ptable[0] || temptable[1]<temptable[0])
+    {
+      if (verbose)
+        cout<<"Warning: Input EOS file "<<filename<<" is not ordered correctly, please refer to README"<<endl;
+      return;
+    }
+
     accP=gsl_interp_accel_alloc ();
     accT=gsl_interp_accel_alloc ();
-    spline2drho = gsl_spline2d_alloc(gsl_interp2d_bicubic, tlen, nline/tlen);
-    spline2dadi = gsl_spline2d_alloc(gsl_interp2d_bicubic, tlen, nline/tlen);
+    spline2drho = gsl_spline2d_alloc(gsl_interp2d_bilinear, tlen, nline/tlen);
+    spline2dadi = gsl_spline2d_alloc(gsl_interp2d_bilinear, tlen, nline/tlen);
     gsl_spline2d_init(spline2drho,temptable,Ptable,rhotable,tlen,nline/tlen);
     gsl_spline2d_init(spline2dadi,temptable,Ptable,adiabattable,tlen,nline/tlen);
 
@@ -271,7 +282,7 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
   else
   {
     if (verbose)
-      cout<<"Warning: Input EOS file "<<filename<<" in the wrong format\n This MAY cause segmentation fault in the run time if this phase "<<phaseinput<<" is used in the runtime!!"<<endl;
+      cout<<"Warning: Requires 2 column (P, rho) or 4 column (P,T,rho,dT/dP_S) table in input EOS file "<<filename<<" \n This MAY cause segmentation fault in the run time if this phase "<<phaseinput<<" is used in the runtime!!"<<endl;
     return;
   }
 
@@ -959,7 +970,7 @@ double EOS::density(double P, double T, double rho_guess)
   else if(density_extern)
     return density_extern(P, T);
   
-else if(eqntype == 7)		// interpolate an input file
+  else if(eqntype == 7)		// interpolate an input file
   {
 
     P /= 1E10;
@@ -972,11 +983,31 @@ else if(eqntype == 7)		// interpolate an input file
       if(status == GSL_EDOM)
       {
         if (verbose)
-	        cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-        if(P < Ptable[0])
+	        cout<<"Warning: Pressure "<<P<<"GPa or Temperature "<<T<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+        if(P < Ptable[0] && T < temptable[0])
 	        return rhotable[0];
+        else if(P>Ptable[nline/tlen-1] && T>temptable[tlen-1])
+          return rhotable[nline-1];
+        else if(P<Ptable[0])
+        {
+          gsl_spline2d_eval_e(spline2drho, T, Ptable[0], accT, accP, &rho);
+          return rho;
+        }
+        else if(P>Ptable[nline/tlen-1])
+        {
+          gsl_spline2d_eval_e(spline2drho, T, Ptable[nline/tlen-1], accT, accP, &rho);
+          return rho;
+        }
+        else if(T < temptable[0])
+        {
+          gsl_spline2d_eval_e(spline2drho, temptable[0], P, accT, accP, &rho);
+          return rho;
+        }
         else
-	        return rhotable[nline-1];
+        {
+          gsl_spline2d_eval_e(spline2drho, temptable[tlen-1], P, accT, accP, &rho);
+          return rho;
+        }          
       }
       else	
         return rho;      
@@ -1525,7 +1556,7 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
     double gamma = adiabatic_index();
     return - (gamma-1)*T/(gamma*P);
   }
-  if(eqntype==7) //tabular
+  if(eqntype==7) //tabular P-T table
   {
     P /= 1E10;
     double adiabat;
@@ -1534,13 +1565,31 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
 
     if(status == GSL_EDOM)
     {
-      if (verbose)
-	      cout<<"Warning: Pressure "<<P<<"GPa is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
-      if(T < temptable[0])
-	      return temptable[0];
+      if(P < Ptable[0] && T < temptable[0]) //return end point if P or T outside table bounds
+	      return adiabattable[0];
+      else if(P>Ptable[nline/tlen-1] && T>temptable[tlen-1])
+        return adiabattable[nline-1];
+      else if(P<Ptable[0])
+      {
+        gsl_spline2d_eval_e(spline2dadi, T, Ptable[0], accT, accP, &adiabat);
+        return adiabat/1E10;
+      }
+      else if(P>Ptable[nline/tlen-1])
+      {
+        gsl_spline2d_eval_e(spline2dadi, T, Ptable[nline/tlen-1], accT, accP, &adiabat);
+        return adiabat/1E10;
+      }
+      else if(T < temptable[0])
+      {
+        gsl_spline2d_eval_e(spline2dadi, temptable[0], P, accT, accP, &adiabat);
+        return adiabat/1E10;
+      }
       else
-	      return temptable[tlen-1];
-    }
+      {
+        gsl_spline2d_eval_e(spline2dadi, temptable[tlen-1], P, accT, accP, &adiabat);
+        return adiabat/1E10;
+      }          
+      }
     else	
       return adiabat/1E10;     
   }
