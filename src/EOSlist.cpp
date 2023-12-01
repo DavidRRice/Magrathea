@@ -388,7 +388,7 @@ EOS *Ice_Seager = new EOS("Ice (Seager)", "./tabulated/water.txt");
 
 // -----------------------------------
 // Ice, 
-EOS *Ice_AQUA = new EOS("Ice (AQUA)", "./tabulated/aqua.txt");
+EOS *Ice_AQUA = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
 
 // -----------------------------------
 // Ice Dummy,  Used to fill in phase space that no EOS provided.
@@ -437,7 +437,7 @@ EOS *watervapor = new EOS("Water vapor", watervapor_array, 3);
 
 // -----------------------------------
 // H/He, Chambrier & Debras 2021 Apj, Y=0.275
-EOS *Gas_hhe = new EOS("H/He (Chambrier)", "./tabulated/ChamberierHHe0275.txt");
+EOS *Gas_hhe = new EOS("H/He (Chambrier)", "./tabulated/ChamberierHHe0275_e.txt");
 
 // ==========  OTHER  ================
 

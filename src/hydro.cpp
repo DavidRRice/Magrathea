@@ -14,7 +14,6 @@ int derivs_m(double x, const double y[], double dydx[], void * params)
   double MM = p->x[2];
   double MW = p->x[3];
   double Teq = p->x[4];
-  
   if (y[1] < 0)
   {
     p->x[0] = -1;

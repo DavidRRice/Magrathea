@@ -114,7 +114,7 @@ private:
   int n, Z;
   bool Debye_approx;		       // Debye approximate or Einstein approximate.
   int thermal_type;		       // Indicates the thermal type of the phase.  0 indicates no temperature profile available, 1 indicates entropy method, 2 indicates the temperature gradient method, 3 indicates ideal gas, 4 indicates the EOS is fitted along the isentrope, 5 indicates no Theta0, 6 indicates has Theta 0 but no electron pressure, 7 indicates has electron pressure as well, type 8, RTpress style, type 9 thermal expansion
-  double *rhotable, *Ptable, *temptable, *adiabattable;	// density table in cgs, Ptable in GPa.
+  double *rhotable, *Ptable, *temptable, *entroptable;	// density table in cgs, Ptable in GPa.
   int lowplowtind=0, lowphightind=0, highplowtind=0, highphightind=0;
   int tabletype=1; //Table 2D or 3D
   int bn;				// number of indices of b
@@ -124,7 +124,7 @@ private:
   gsl_interp_accel *accT; // The gsl interpolation accelerator.
   gsl_spline *spline; // The gsl workspace objects
   gsl_spline2d *spline2drho;
-  gsl_spline2d *spline2dadi;
+  gsl_spline2d *spline2dent;
   int nline;
   int tlen;
   
