@@ -37,9 +37,9 @@ int main()
   if (input_mode == 0)
   {
     vector<PhaseDgm> Comp = {Fe, Si, water, atm};
-    vector<double> Tgap = {0, 0, 0, 300};
+    vector<double> Tgap = {0, 0, 0, 310};
     // The temperature of the outer boundary of the inner component minus the inner boundary of the outer component.  A positive number indicates temperature increases inward.  0 indicates the temperature is continuous at the boundary of components.  The last number is the planetary surface temperature.
-    vector<double> Mcomp =  {0.0,1,1,0}; // Mass in Earth Masses of Core, Mantle, Hydrosphere, Atmosphere
+    vector<double> Mcomp =  {0.0,1.0,1.0,0.0}; // Mass in Earth Masses of Core, Mantle, Hydrosphere, Atmosphere
     double deltat;
     gettimeofday(&start_time,NULL);
     planet=fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
@@ -56,7 +56,7 @@ int main()
       cout<<"\t No solution found."<<endl;
     }
     else
-      planet->print("./result/test2.txt", true); // Save the result in an asc file with this name.
+      planet->print("./result/AQUAe310new2.txt", true); // Save the result in an asc file with this name.
 
     delete planet;
   }  

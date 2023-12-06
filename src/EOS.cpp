@@ -1563,59 +1563,71 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
     P /= 1E10;
     double dsdt;
     double dsdp;
+    double tgrad;
     int status;
     status = gsl_spline2d_eval_deriv_x_e(spline2dent, T, P, accT, accP, &dsdt);
     gsl_spline2d_eval_deriv_y_e(spline2dent, T, P, accT, accP, &dsdp);
-    
-    //cout<<"dsdt "<<dsdt<<endl;
-    //cout<<"dsdp "<<dsdp<<endl;
+
     if(status == GSL_EDOM)
     {
       if(P < Ptable[0] && T < temptable[0]) //return end point if P or T outside table bounds
 	    {
         gsl_spline2d_eval_deriv_x_e(spline2dent, temptable[0], Ptable[0], accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[0], Ptable[0], accT, accP, &dsdp);
-        return -1*dsdp/dsdt/1E10;
+        tgrad=-1*dsdp/dsdt/1E10;
       }
       else if(P>Ptable[nline/tlen-1] && T>temptable[tlen-1])
 	    {
         gsl_spline2d_eval_deriv_x_e(spline2dent, temptable[tlen-1], Ptable[nline/tlen-1], accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[tlen-1], Ptable[nline/tlen-1], accT, accP, &dsdp);
-        return -1*dsdp/dsdt/1E10;
+        tgrad=-1*dsdp/dsdt/1E10;
       }
       else if(P<Ptable[0])
       {
         gsl_spline2d_eval_deriv_x_e(spline2dent, T, Ptable[0], accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, T, Ptable[0], accT, accP, &dsdp);
-        return -1*dsdp/dsdt/1E10;
+        tgrad=-1*dsdp/dsdt/1E10;
       }
       else if(P>Ptable[nline/tlen-1])
       {
         gsl_spline2d_eval_deriv_x_e(spline2dent, T, Ptable[nline/tlen-1], accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, T, Ptable[nline/tlen-1], accT, accP, &dsdp);
         //gsl_spline2d_eval_e(spline2dadi, T, Ptable[nline/tlen-1], accT, accP, &adiabat);
-        return -1*dsdp/dsdt/1E10;
+        tgrad=-1*dsdp/dsdt/1E10;
       }
       else if(T < temptable[0])
       {
         gsl_spline2d_eval_deriv_x_e(spline2dent, temptable[0], P, accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[0], P, accT, accP, &dsdp);
         //gsl_spline2d_eval_e(spline2dadi, temptable[0], P, accT, accP, &adiabat);
-        return -1*dsdp/dsdt/1E10;
+        tgrad=-1*dsdp/dsdt/1E10;
       }
       else
       {
         gsl_spline2d_eval_deriv_x_e(spline2dent, temptable[tlen-1], P, accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[tlen-1], P, accT, accP, &dsdp);
         //gsl_spline2d_eval_e(spline2dadi, temptable[tlen-1], P, accT, accP, &adiabat);
-        return -1*dsdp/dsdt/1E10;
+        tgrad=-1*dsdp/dsdt/1E10;
       }          
       }
     else	
     {
       //cout<<"dsdp/dsdt "<<dsdp/dsdt<<endl;
-      return -1*dsdp/dsdt/1E10;     
+      tgrad=-1*dsdp/dsdt/1E10;     
     }
+    return tgrad;
+    //cout<<tgrad<<endl;
+    //if(tgrad>0)
+    //{
+    //  tgrad_prev=tgrad;
+    //  return tgrad;
+    //}
+    //else
+    //{
+    //  tgrad=tgrad_prev;
+    //  return tgrad;
+    //}
+    
   }
   rho_guess = density(P*1E10, T, rho_guess);
   double V = volume(rho_guess);

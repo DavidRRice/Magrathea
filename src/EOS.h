@@ -127,6 +127,7 @@ private:
   gsl_spline2d *spline2dent;
   int nline;
   int tlen;
+  double tgrad_prev=1E-12;
   
 /*
   phasetype is the name of a phase. The comment about the EOS used for the phase should be in the parentheses separated by a space.

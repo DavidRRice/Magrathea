@@ -387,8 +387,20 @@ EOS *IceX_HS = new EOS("Ice X (Hermann)", IceX_HS_array, sizeof(IceX_HS_array)/2
 EOS *Ice_Seager = new EOS("Ice (Seager)", "./tabulated/water.txt");
 
 // -----------------------------------
-// Ice, 
+// Ice, AQUA tabulated, Haldermann et al. 2022, A&A 643, A105
 EOS *Ice_AQUA = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
+
+// -----------------------------------
+// Ice, 
+EOS *Ice_AQUA1 = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
+
+// -----------------------------------
+// Ice, 
+EOS *Ice_AQUA2 = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
+
+// -----------------------------------
+// Ice, 
+EOS *Ice_AQUA3 = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
 
 // -----------------------------------
 // Ice Dummy,  Used to fill in phase space that no EOS provided.
