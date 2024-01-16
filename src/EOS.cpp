@@ -170,13 +170,12 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
       cout<<"Warning: Failed to open input EOS file "<<filename<<" \n This MAY cause segmentation fault in the run time if this phase "<<phaseinput<<" is used in the runtime!!"<<endl;
     return;
   }
-
   nline = 0;
   getline(fin,sline);
   streampos beginpos=fin.tellg();
   stringstream stemp;
   bool previoustab=false;
-
+  
   for(size_t i=0; i<sline.size()-1; i++){ //Checks columns for 2D or 3D table
     if(sline[i] == '\t')
       {
@@ -188,7 +187,7 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
         previoustab = false;
       }   
     }  
-
+  
 
   while(getline(fin,sline))
   {
@@ -197,10 +196,12 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
   }
   fin.clear();
   fin.seekg(beginpos);
-
+  cout<<filename<<endl;
+  cout<<tabletype<<endl;
   if(tabletype==4) //Pressure, Temperature, Density, Entropy Table
   {
     tlen=0;
+    
     double ptemp=0, ptemp1, ttemp, rhotemp,entroptemp;
     for(int i=0; i<nline; i++){
       fin>>ptemp1>>ttemp>>rhotemp>>entroptemp; 
@@ -208,6 +209,7 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
         break;
       else{
         tlen++;
+        
         ptemp=ptemp1;
       }
     }
@@ -219,7 +221,7 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
         cout<<"Warning: The input EOS file "<<filename<<" is not rectangular"<<endl;
       return;
     }
-      
+     
     rhotable=new double[nline-1];
     Ptable=new double[nline/tlen-1];
     temptable=new double[tlen-1];
@@ -228,6 +230,7 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
    
     fin>>Ptable[0]>>temptable[0]>>rhotable[0]>>entroptable[0];
     fin.seekg(beginpos);
+    
     for(int i=0; i<nline; i++){
       fin>>ptemp>>ttemp>>rhotable[i]>>entroptable[i];
       if(i<tlen){
@@ -238,20 +241,21 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
       }
     }
     fin.close();
-    
+
     if(Ptable[1]<Ptable[0] || temptable[1]<temptable[0])
     {
-      cout<<Ptable[1]<<' '<<Ptable[0]<<endl;
-      cout<<tlen<<endl;
       if (verbose)
         cout<<"Warning: Input EOS file "<<filename<<" is not ordered correctly, please refer to README"<<endl;
       return;
     }
-
-    accP=gsl_interp_accel_alloc ();
-    accT=gsl_interp_accel_alloc ();
+    cout<<Ptable[0]<<temptable[0]<<rhotable[0]<<entroptable[0]<<endl; 
+    accP=gsl_interp_accel_alloc();
+    accT=gsl_interp_accel_alloc();
+    cout<<tlen<<endl;
+    cout<<nline/tlen<<endl;
     spline2drho = gsl_spline2d_alloc(gsl_interp2d_bilinear, tlen, nline/tlen);
     spline2dent = gsl_spline2d_alloc(gsl_interp2d_bilinear, tlen, nline/tlen);
+    cout<<'y'<<endl;
     gsl_spline2d_init(spline2drho,temptable,Ptable,rhotable,tlen,nline/tlen);
     gsl_spline2d_init(spline2dent,temptable,Ptable,entroptable,tlen,nline/tlen);
 
@@ -985,7 +989,7 @@ double EOS::density(double P, double T, double rho_guess)
       if(status == GSL_EDOM)
       {
         if (verbose)
-	        cout<<"Warning: Pressure "<<P<<"GPa or Temperature "<<T<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
+	        cout<<"Warning: Pressure "<<P<<"GPa or Temperature "<<tgrad_prev<<"K is outside the tabulated range for "<<this->phasetype<<". The density at the end point is returned"<<endl;
         if(P < Ptable[0] && T < temptable[0])
 	        return rhotable[0];
         else if(P>Ptable[nline/tlen-1] && T>temptable[tlen-1])
@@ -1581,12 +1585,14 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
         gsl_spline2d_eval_deriv_x_e(spline2dent, temptable[tlen-1], Ptable[nline/tlen-1], accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[tlen-1], Ptable[nline/tlen-1], accT, accP, &dsdp);
         tgrad=-1*dsdp/dsdt/1E10;
+        //tgrad=1/1E10;
       }
       else if(P<Ptable[0])
       {
         gsl_spline2d_eval_deriv_x_e(spline2dent, T, Ptable[0], accT, accP, &dsdt);
         gsl_spline2d_eval_deriv_y_e(spline2dent, T, Ptable[0], accT, accP, &dsdp);
         tgrad=-1*dsdp/dsdt/1E10;
+        //tgrad=1/1E10;
       }
       else if(P>Ptable[nline/tlen-1])
       {
@@ -1594,6 +1600,7 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
         gsl_spline2d_eval_deriv_y_e(spline2dent, T, Ptable[nline/tlen-1], accT, accP, &dsdp);
         //gsl_spline2d_eval_e(spline2dadi, T, Ptable[nline/tlen-1], accT, accP, &adiabat);
         tgrad=-1*dsdp/dsdt/1E10;
+        //tgrad=1/1E10;
       }
       else if(T < temptable[0])
       {
@@ -1601,6 +1608,7 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[0], P, accT, accP, &dsdp);
         //gsl_spline2d_eval_e(spline2dadi, temptable[0], P, accT, accP, &adiabat);
         tgrad=-1*dsdp/dsdt/1E10;
+        //tgrad=1/1E10;
       }
       else
       {
@@ -1608,6 +1616,7 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
         gsl_spline2d_eval_deriv_y_e(spline2dent, temptable[tlen-1], P, accT, accP, &dsdp);
         //gsl_spline2d_eval_e(spline2dadi, temptable[tlen-1], P, accT, accP, &adiabat);
         tgrad=-1*dsdp/dsdt/1E10;
+        //tgrad=1/1E10;
       }          
       }
     else	
@@ -1615,17 +1624,20 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
       //cout<<"dsdp/dsdt "<<dsdp/dsdt<<endl;
       tgrad=-1*dsdp/dsdt/1E10;     
     }
+    //cout<<P<<' '<<tgrad<<endl;
     return tgrad;
-    //cout<<tgrad<<endl;
-    //if(tgrad>0)
+    
+    //if((tgrad>0 && tgrad<40))//
     //{
-    //  tgrad_prev=tgrad;
-    //  return tgrad;
+      //tgrad_prev=tgrad;
+    //  cout<<tgrad<<endl;
+      //return tgrad;
     //}
     //else
     //{
     //  tgrad=tgrad_prev;
-    //  return tgrad;
+      //cout<<abs(tgrad-tgrad_prev)/tgrad<<endl;
+    //  return 2.0/7.0*T/P;
     //}
     
   }

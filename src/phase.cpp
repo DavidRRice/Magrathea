@@ -334,20 +334,20 @@ EOS* find_water_phase(double P, double T)
 // Tabular Phase Diagram for Hydrosphere
 EOS* find_water_phase_tabular(double P, double T)
 {
-  P /= 10;			// convert microbar to GPa
+  P /= 1E10;			// convert microbar to GPa
   //double Tt1, Tt2;
   if (P <= 0 || T <= 0)
   {
     return NULL;
   }
-  //return Ice_AQUA;
+  return Ice_AQUA;
   //if(T>-1.4699E5+6.10791E-6*P*1E9+8.1529E3*log(P*1E9)-8.8439E-1*sqrt(P*1E9))
-  if(P>pow(10,exp(2.6752*pow(T/355,-0.0269)-0.46234*pow(T/355,-1)+0.1237*pow(T/355,-3))-1)/1e9){ //Melting of IceVII
+  //if(P>pow(10,exp(2.6752*pow(T/355,-0.0269)-0.46234*pow(T/355,-1)+0.1237*pow(T/355,-3))-1)/1e9){ //Melting of IceVII
       //cout<<'1'<<endl;
-      return Ice_AQUA;}
-  else{
-      cout<<'2'<<endl;
-      return Ice_AQUA1;}
+  //    return Ice_AQUA3;}
+  //else{
+      //cout<<'2'<<endl;
+  //    return Ice_AQUA3;}
 } 
  
 // ---------------------------------

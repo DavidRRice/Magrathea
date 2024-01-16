@@ -391,12 +391,16 @@ EOS *Ice_Seager = new EOS("Ice (Seager)", "./tabulated/water.txt");
 EOS *Ice_AQUA = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
 
 // -----------------------------------
-// Ice, 
-EOS *Ice_AQUA1 = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
+// Ice, AQUA tabulated, Haldermann et al. 2022, A&A 643, A105
+EOS *Ice_SeaFreeze = new EOS("Ice (SeaFreeze)", "./tabulated/SeaFreeze.txt");
 
 // -----------------------------------
 // Ice, 
-EOS *Ice_AQUA2 = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
+EOS *Ice_AQUA1 = new EOS("Ice (AQUA)", "./tabulated/aqua_e_ice.txt");
+
+// -----------------------------------
+// Ice, 
+EOS *Ice_AQUA2 = new EOS("Ice (AQUA)", "./tabulated/aqua_e_double.txt");
 
 // -----------------------------------
 // Ice, 
