@@ -248,12 +248,13 @@ EOS::EOS(string phaseinput, string filename):phasetype(phaseinput),eqntype(7), V
         cout<<"Warning: Input EOS file "<<filename<<" is not ordered correctly, please refer to README"<<endl;
       return;
     }
-    cout<<Ptable[0]<<temptable[0]<<rhotable[0]<<entroptable[0]<<endl; 
+    
     accP=gsl_interp_accel_alloc();
     accT=gsl_interp_accel_alloc();
     cout<<tlen<<endl;
     cout<<nline/tlen<<endl;
     spline2drho = gsl_spline2d_alloc(gsl_interp2d_bilinear, tlen, nline/tlen);
+    cout<<'y'<<endl;
     spline2dent = gsl_spline2d_alloc(gsl_interp2d_bilinear, tlen, nline/tlen);
     cout<<'y'<<endl;
     gsl_spline2d_init(spline2drho,temptable,Ptable,rhotable,tlen,nline/tlen);

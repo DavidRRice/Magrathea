@@ -388,7 +388,7 @@ EOS *Ice_Seager = new EOS("Ice (Seager)", "./tabulated/water.txt");
 
 // -----------------------------------
 // Ice, AQUA tabulated, Haldermann et al. 2022, A&A 643, A105
-EOS *Ice_AQUA = new EOS("Ice (AQUA)", "./tabulated/aqua_e.txt");
+EOS *Ice_AQUA = new EOS("Ice (AQUA)", "./tabulated/aqua_e_double.txt");
 
 // -----------------------------------
 // Ice, AQUA tabulated, Haldermann et al. 2022, A&A 643, A105
