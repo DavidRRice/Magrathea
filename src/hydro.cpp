@@ -174,7 +174,7 @@ hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vec
   EOS *Phase, *new_Phase;
   int thermal;
   M_Comp = Mass_Comp;
-  for (uint i=0; i<Comp_in.size(); i++) 
+  for (unsigned int i=0; i<Comp_in.size(); i++) 
     Comp.push_back(Comp_in[i]); 
 
   int n_Comp = M_Comp.size();
@@ -675,7 +675,7 @@ hydro::hydro(double Rp, double Pc, double Tc,  vector<PhaseDgm> &Comp_in, vector
   EOS *Phase, *new_Phase;
   int thermal;
   M_Comp = Mass_Comp;
-  for (uint i=0; i<Comp_in.size(); i++) 
+  for (unsigned int i=0; i<Comp_in.size(); i++) 
     Comp.push_back(Comp_in[i]); 
   int n_Comp = M_Comp.size();
   double Mtot = accumulate(M_Comp.begin(), M_Comp.end(), 0.0) * ME;
@@ -1613,6 +1613,7 @@ hydro* Rloop(vector<PhaseDgm> &Comp, vector<double> M_Comp, vector<double> ave_r
 
   gsl_root_fsolver_free (s);
 
+  Rp = R_hi;
   hydro *temp=new hydro(R_hi, Comp, M_Comp, Tgap, ode_eps_rel0, P0, isothermal); // Need the branch of solution that does not diverge at the center to get the central pressure and temperature
 
   Pc = temp -> getPc() * sqrt(1 + temp -> getRc() / Rp); // Make a correction to the pressure

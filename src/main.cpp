@@ -3,6 +3,7 @@
 #include "EOSmodify.h"
 #include "phase.h"
 #include "hydro.h"
+#include "compfind.h"
 
 struct timeval start_time, end_time;
 
@@ -32,7 +33,7 @@ int main()
   // 3: modify a built-in EOS on they fly, 
   // 4: iterate over EOS modifications with two-layer solver, 5: iterate over EOS with regular solver
   // 6: bulk input mode with regular solver
-  // 7: composition finder *in devopment*, secant method to find third layer mass to match a mass and radius measurement
+  // 7: composition finder, secant method to find third layer mass to match a mass and radius measurement
 
   if (input_mode == 0)
   {
@@ -44,7 +45,7 @@ int main()
     cout<<count_shoot<<' '<<count_step<<endl;
     if (!planet)
     {
-      for (uint i=0; i < Mcomp.size(); i++)
+      for (unsigned int i=0; i < Mcomp.size(); i++)
 	cout<<Mcomp[i]<<", ";
       cout<<"\t No solution found."<<endl;
     }
@@ -146,307 +147,45 @@ int main()
 
   else if(input_mode == 6)
   {
-    double deltat;
-    // read in a file with a table of mass fractions in the unit of earth's mass.  Calculate the radius of such planets and write in a file.
-
-    /*
-    Example input file
-    Mass, fCore, fMantle, fWater
-    2     0.2    0.4      0.4
-    1.5   0.5    0.4      0.1
-    */
-    // Tgap and File names are prompted in command line for user entry
-
-    string filename;
-    cout<<"This function requires an input file that contains the planet mass in the unit of the Earth mass and the mass fraction of core, mantle and water.  The first column is the total planet mass in Earth unit.  The sum of the mass fraction should be less than or equal to 1.  The remaining mass would be put in the ideal gas layer.  The columns from the left to the right should be in planet mass, core, mantle, and water mass fraction.  The first row of the table would be considered as the header and WILL NOT be read in."<<endl<<"The please input the filename (with relative path from current directory):"<<endl;
-    cin >> filename;
-    fin.open(filename.c_str());
-    if(!fin)
-    {
-      cout<<"ERROR: failed to open input planet list file, "<<filename<<" Exit."<<endl;
-      return 1;
-    }
-
-    double *Mp, *fW, *fC, *fM, MC, MM, MW, MG;
-    vector<double> Rs;
-    string sline;
-    int nline = 0;
-
-    getline(fin,sline);
-    streampos beginpos = fin.tellg();
-
-    while(getline(fin,sline))
-    {
-      if(!sline.empty())
-	nline++;
-    }
-
-    fin.clear();
-    fin.seekg(beginpos);
-
-    Mp = new double[nline];
-    fC = new double[nline];
-    fM = new double[nline];
-    fW = new double[nline];
-
-    for(int i=0; i<nline; i++)
-      fin>>Mp[i]>>fC[i]>>fM[i]>>fW[i];
-
-    fin.close();
-
-    cout<<"Please input file name to store the output result.  Code will create a new file with the name provided.  If the file exists, any contents that existed will be discarded. \n file name:"<<endl;
-    cin >> filename;
-    ofstream fout(filename.c_str(), std::ofstream::trunc);
-    if(!fout)
-    {
-      cout<<"ERROR: failed to open output file., "<<filename<<"  Exit"<<endl;
-      return 1;
-    }
-
-    char mode='1';
-    cout<<"Calculation mode. Mode 2 is twice faster, but only applicable for planet with no gas layer and whose temperature effect is not important."<<endl;
-    cout<<"Choose the mode to use (1 or 2. default 1):";
-    cin>>mode;
-
     vector<PhaseDgm> Comp = {Fe, Si, water, atm};
-    vector<double> Tgap;
-    if (mode!='2')
-    {
-      double T1, T2, T3, T4;
-      cout<<"Please input the temperature jump at the boundary of Fe core and Silicate mantle. Positive number if core is hotter than mantle, 0 if temperature is continuous at the boundary."<<endl;
-      cin>>T1;
-      Tgap.push_back(T1);
-      cout<<"Please input the temperature jump at the boundary of Silicate mantle and ice shell."<<endl;
-      cin>>T2;
-      Tgap.push_back(T2);
-      cout<<"Please input the temperature jump at the boundary of ice shell and gas layer."<<endl;
-      cin>>T3;
-      Tgap.push_back(T3);
-      cout<<"Please input the planet surface temperature."<<endl;
-      cin>>T4;
-      Tgap.push_back(T4);
-    }
-    gettimeofday(&start_time,NULL);
-  
-    fout<<"MCore, MMantle, MWater, MGas, RCore, RMantle, RWater, RPlanet"<<endl;
-    cout<<"Percentage completed:"<<endl;
-    for(int i=0; i<nline; i++)
-    {
-      MC = fC[i]*Mp[i];
-      MM = fM[i]*Mp[i];
-      MW = fW[i]*Mp[i];
-      MG = Mp[i] - (MW+MC+MM);
+    vector<double> Tgap = {0,0,0,300}; // Using full temperature solver, Temperature gap between each layer and surface temperature.
 
-      if(MG < 0)
-      {
-	if(MG > -0.001*Mp[i])	// mass of gas smaller than 0 probably due to round error, fix the problem by reduce water mass and set gas mass to 0.
-	{
-	  MW += MG;
-	  MG = 0;
-	}
-	else
-	{
-	  cout<<"Mass, fCore, fMantle, fWater "<<Mp[i]<<' '<<fC[i]<<' '<<fM[i]<<' '<<fW[i]<<" gives negative gas mass "<<MG<<".  nan will be in the output file.";
-	  fout<<MC<<"\t "<<MM<<"\t "<<MW<<"\t "<<MG<<"\t nan"<<endl;
-	  continue;
-	}
-      }
-      if(mode == '2')
-	planet = getmass(MC, MM, MW, P_surface);
-      else
-	planet = fitting_method(Comp, {MC, MM, MW, MG}, Tgap, ave_rho, P_surface, false);
-      cout<<count_shoot<<' '<<count_step<<endl;
-      if (!planet)
-	fout<<MC<<"\t "<<MM<<"\t "<<MW<<"\t "<<MG<<"\t No solution found."<<endl;
-      else
-      {
-	Rs = planet -> getRs();
-	fout<<MC<<"\t "<<MM<<"\t "<<MW<<"\t "<<MG<<"\t ";
-	for(int j=0; j < int(Rs.size()); j++)
-	  fout<<Rs[j]<<"\t ";
-	if (planet->getstatus() == 1)
-	  fout<<" Dummy EOS used.";
-	else if (planet->getstatus() == 2)
-	  fout<<" Solution did not converge.";
-	fout<<endl;
-	delete planet;
-      }
+    string infilename="./run/inputcore.txt";
+    string outfilename="./result/coreplanets.txt";
 
-      if (100*(i+1) / nline > 100*i/nline) // progress bar
-	cout<<100*(i+1)/nline<<'%'<<'\r'<<std::flush;
-    }  
-    cout<<endl;
-    fout.close();
+    int solver=1; //Calculation mode. Mode 2 is twice faster, but only applicable for planet with no gas layer and whose temperature effect is not important
 
-    gettimeofday(&end_time, NULL);
-  
-    deltat = ((end_time.tv_sec  - start_time.tv_sec) * 1000000u + end_time.tv_usec - start_time.tv_usec) / 1.e6;
+    
+    multiplanet(Comp, Tgap, solver, ave_rho, P_surface, false, infilename, outfilename);
+    
 
-    cout<<"running time "<<deltat<<'s'<<endl;
-
-    delete[] Mp;
-    delete[] fW;
-    delete[] fC;
-    delete[] fM;
   }
 
   else if(input_mode == 7)
   {
-    // read in a file with a table of mass and radius posterior samples
+    vector<PhaseDgm> Comp = {Fe, Si, water, atm};
+    vector<double> Tgap = {0,0,0,300}; // Using full temperature solver, Temperature gap between each layer and surface temperature.
+
+    string infilename="./run/T1hpost.txt";
+    string outfilename="./result/T1houtput.txt";
+
+    //Solver will hold 2 layers in constant Partial Mass Ratio (PMF) and find the mass of 3rd layer: 
+    //PMR(%) is OMF/(IMF+OMF)*100, where OMG is outer-mass fraction, IMF is inner-mass fraction
+    //Solver can be looped through steps in PMR
+    int findlayer=3; //1 to find core, 2 for mantle, 3 for water, 4 for atmosphere mass fraction
+    vector<int> layers={1,1,0,0}; //mark which layers {C,M,W,A} to hold in constant total ratio
+    double minPMR=67.0; //Minimum PMR(%) for iteration, must be multiple of 0.1
+    double maxPMR=67.0; //Maximum PMR(%) for iteration, must be multiple of 0.1
+    float step=1.0; // Step size for partial mass ratio, must be multiple of 0.1
+
+    double rerr=0.001; // Error in the simulated radius to target radius
+
+    //Multi-threading is commented out by default for easy install
+    //Must uncomment Line 2 in Makefile and all occurences of "pragma..." in comfind.cpp 
+    int num_threads=0; 
     
-    // Example input file
-    // Mass Radius
-    // 1.3617007672434112 1.1000571279817417
-    // 1.3122419209981564 1.1101895856223976 
-    
-    string filename="./run/T1hpost.txt";
-    fin.open(filename.c_str());
-    if(!fin)
-    {
-      cout<<"ERROR: failed to open input planet list file, "<<filename<<" Exit."<<endl;
-      return 1;
-    }
+    compfinder(Comp,findlayer,layers,minPMR,maxPMR,step,rerr,num_threads,Tgap,ave_rho,P_surface,false,infilename, outfilename);
 
-    double *Mp, *Rtarg;
-    vector<double> Rs;    
-    string sline;
-    int nline = 0;
-
-    getline(fin,sline);
-    streampos beginpos = fin.tellg();
-
-    while(getline(fin,sline))
-    {
-      if(!sline.empty())
-	    nline++;
-    }
-
-    fin.clear();
-    fin.seekg(beginpos);
-
-    Mp = new double[nline];
-    Rtarg = new double[nline];
-
-    for(int i=0; i<nline; i++)
-      fin>>Mp[i]>>Rtarg[i];
-
-    fin.close();
-    filename="./result/T1houtput.txt";
-    ofstream fout(filename.c_str(), std::ofstream::trunc);
-    if(!fout)
-    {
-      cout<<"ERROR: failed to open output file., "<<filename<<"  Exit"<<endl;
-      return 1;
-    }
-
-    fout<<"MPlanet, MCore, MMantle, MWater, RCore, RMantle, RWater, RPlanet, RPosterior"<<endl;
-//    #pragma omp parallel for schedule(dynamic) num_threads(3) private(planet, Rs)   
-    for(int i=0; i<nline; i++) // Loop for each posterior
-    {
-      int step=1; // Step size for core/manlte %
-      double rerr=0.001; // Acceptable error in the simulated radius to target radius
-      double MC, MM, MW, MG;
-      vector<PhaseDgm> Comp = {Fe, Si, water, atm};
-      vector<double> Tgap = {0,0,0,300}; // Using full temperature solver, Temperature gap between each layer and surface temperature.
-      char final='n';     
-      for(int j=0; j<101; j+=step){   // Loop for each core:mantle mass fraction
-        double R1=0, R2=0;
-        double fM0=j/100.0; 
-        double fM=fM0;   // Constant Core:Mantle Ratio, start at 1, mantle % increases by j
-        double fC=1-fM0; // Starts 100% Core
-        double fW1=0.0, fW0=0.0, fW2=0.0;  // Starts 0% Water        
-        do   // Finds water fraction to match posterior sampled radius
-        {
-          if (fW1==0) // First iteration
-          {
-            MC = fC*Mp[i];
-            MM = fM*Mp[i];
-            MW = fW0*Mp[i];
-            MG = 0;
-
-	    planet = fitting_method(Comp, {MC, MM, MW, MG}, Tgap, ave_rho, P_surface, false);
-            if (!planet)
-    	    {
-              fW0=0.0001;  // No solution. Try increasing water fraction
-              R1=0;
-            }
-            else
-            {
-	          Rs = planet -> getRs();
-	          delete planet;
-	          R1 = Rs[Rs.size()-1]; // Radius of planet
-	          if (Rtarg[i]<R1)  
-	          {
-    	        if (j==0) // Posterior radius is less than 100% core planet
-    	        {
-    	          fout<<Mp[i]<<"\t "<<Rtarg[i]<<"\t Radius too small for mass."<<endl; 
-    	          final='y';
-	              j=101; // Move to next posterior
-	              break;
-	            }
-	            else // Planet must have a larger core:mantle ratio
-	            {
-	              final='y';  // Don't keep this data point
-	              j=101; // Move to the next posterior
-	              break;  
-	            }
-	          }	                   
-	        }	          
-	        fW0=fW1;
-	        fW1=fW1+0.001;  // Initial step size 0.001       
-          }
-          
-          else  // Second iteration onward
-          {
-            
-            fC=(1-fM0)-(1-fM0)*fW1; // Keep core:mantle ratio constant subtract water fraction proportionally from core and mantle
-            fM=fM0-fM0*fW1;
-            MC = fC*Mp[i];
-            MM = fM*Mp[i];
-            MW = fW1*Mp[i];
-            MG = 0;
-
-	    planet = fitting_method(Comp, {MC, MM, MW, MG}, Tgap, ave_rho, P_surface, false);
-
-            if (!planet)
-    	    {
-    	      fW1=fW1+0.0001; // No solution. Try increasing water fraction
-    	      R1=0;
-    	    }  
-            else
-            {
-	          Rs = planet -> getRs();
-	          R2 = Rs[Rs.size()-1];
-	          fW2=fW1-(fW1-fW0)*(R2-Rtarg[i])/(R2-R1);  // Secant Method
-	          if (fW2<=0) // Secant method returned negative result
-    	          {
-    	          final='y';
-	              j=101; // Move to next posterior
-	              break;
-	          }
-	          fW0=fW1;
-	          fW1=fW2;
-	          R1=R2;
-	          delete planet;
-            }
-          }       
-        }
-        while(abs(Rtarg[i]-R1)/Rtarg[i]>rerr);  // Find Radius with error
-//        #pragma omp critical
-        if (final!='y') // Don't record if the posterior radius is less than radius with 0% water
-        {
-          fout<<Mp[i]<<"\t "<<MC<<"\t "<<MM<<"\t "<<MW<<"\t ";
-	      for(int k=0; k < int(Rs.size()); k++)
-	        fout<<Rs[k]<<"\t ";
-          fout<<Rtarg[i]<<endl;
-        }  
-      } // End of for loop for each core:mantle ratio
-    }  // End of loop for each posterior sample
-
-    fout.close();
-
-    delete[] Mp;
-    delete[] Rtarg;
   }
 
   // ============================
