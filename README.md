@@ -13,7 +13,7 @@ A 1D planet structure code written in C++ which considers the case of fully diff
 The code integrates the hydrostatic equation in order to shoot for the correct planet radius given the mass in each layer.
 The code returns the pressure, temperature, density, phase, and radius at steps of enclosed mass.
 The code supports 4 layers: core, mantle, hydrosphere, and atmosphere. Each layer has a phase diagram with equations of state (EOS) chosen for each phase.
-The code was developed by Chenliang Huang, David R. Rice, and Jason H. Steffen at the Univerisity of Nevada, Las Vegas starting in 2017.
+The code was developed by [Chenliang Huang](https://huang-cl.github.io/), [David R. Rice](https://davidrrice.github.io/), and [Jason H. Steffen](https://www.jasonhsteffen.com/) at the Univerisity of Nevada, Las Vegas starting in 2017.
 See a [list of works](citations.md) that use MAGRATHEA and [instructions on how to cite](CITATION.md). If you don't see something on this ReadMe check our publication in this repository: [*MAGRATHEA.pdf*](MAGRATHEA.pdf).
 
 We encourage the community to contribute to and use MAGRATHEA for their interior modeling needs.
@@ -32,41 +32,41 @@ We encourage the community to contribute to and use MAGRATHEA for their interior
 
 should configure, build, and install the gsl package.  A few prerequisites, such as `g++`, `make`, `make-guile`, may need to be install following the error messages throughout the process. 
 
-On Ubuntu systems, the gsl package can also be installed from the Ubuntu repository using `sudo apt-get install libgsl23 libgsl-dev gsl-bin`. 
+On Ubuntu systems, the gsl package can also be installed from the Ubuntu repository using `sudo apt install libgsl27 libgsl-dev gsl-bin`. 
 
-On Windows systems, we suggest the [cyqwin terminal](https://www.cygwin.com/). Include package 'gsl' upon installation. We suggest including all packages in devel, science, math, and python along with a text editor. 
+On Windows systems, we suggest using WSL and following the above isntructions.
 
 If an error message like "error while loading shared libraries: libgsl.so.23: cannot open shared object file: No such file or directory" is reported when running the code, add `export LD_LIBRARY_PATH=/usr/local/lib` (directory of gsl library files) to the `.bashrc` file, or add `setenv LD_LIBRARY_PATH /usr/local/lib` to the `.cshrc` file.
+
+When running many simulations with bulk input modes, OpenMP can be used to run individual planets in parallel, please contact us to get this set up in the code. 
 
 ## Quick Start ##
 
 Installation:
 
-1. Clone the repository: `git clone https://github.com/Huang-CL/Magrathea.git`.
-2. If the gsl library is not installed globally (under /usr/local/ or equivalent), edit `Makefile` to include the actual path toward the gsl headers (e.g. `~/include` or `~/gsl/include`) and gsl library (e.g. `~/lib` or `~/gsl/lib`) following `-I` in `CFLAGS` and `-L` in `LDFLAGS`.  Note: The path after `-I` should end with `/include`, not `/include/gsl`.  The path of headers and libraries can be found using `gsl-config --cflags` and `gsl-config --libs`.  If the `gsl-config` command is not found, `gsl` may not have been installed properly.
-3. Run `make -B` inside the code's directory. (After the first compilation use `make` to compile the code.)
+1. Open a terminal. Navigate to where you wish to install the directory.
+2. Clone the repository: `git clone https://github.com/Huang-CL/Magrathea.git`.
+3. If the gsl library is not installed globally (under /usr/local/ or equivalent), edit `Makefile` to include the actual path toward the gsl headers (e.g. `~/include` or `~/gsl/include`) and gsl library (e.g. `~/lib` or `~/gsl/lib`) following `-I` in `CFLAGS` and `-L` in `LDFLAGS`. The path of headers and libraries can be found using `gsl-config --cflags` and `gsl-config --libs`.  If the `gsl-config` command is not found, `gsl` may not have been installed properly.  _Note_: The path after `-I` should end with `/include`, not `/include/gsl`.
+4. Run `make -B` inside the code's directory. (After the first compilation use `make` to compile the code.)
 
 Running a planet:
 
-4. Open src/main.cpp in a text editor.
-5. Line 29: set `input_mode=0` (other options are listed below the line).
-6. Line 42*: set mass of the core, mantle, hydrosphere, and atmosphere in Earth-masses. Ex. Mcomp={0.3,0.7,0,0}
-7. Line 40: set surface temperature and any temperature discontinuities. Ex. Tgap={0,0,0,300}
-8. Line 52: set output file name.
-9. Compile changed file with `make`.
-9. Run MAGRATHEA with `./planet`.
-
-*We promise that the primary input parameters occuring on Line 42 is only a coincedence and does not reveal the Ultimate Question.
+5. Open `run/mode0.cfg` in a text editor.
+6. Line 12-14: set mass of the core, mantle, hydrosphere, and atmosphere in Earth-masses.
+7. Line 16-20: set surface temperature and any temperature discontinuities.
+8. Line 21: set output file name and path.
+9. In terminal, compile changed file with `make`.
+10. Run MAGRATHEA with `./planet run/mode0.cfg`.
 
 ## Capability and Output ##
 
 MAGRATHEA uses a shooting to a fitting-point method with a Runge-Kutta-Fehlberg method with an adaptive step-size. The user's supplied mass fractions determine the enclosed mass at each layer's boundary. Within a layer the enclosed mass at which the phase changes is determined by P-T conditions. When a phase changes, the solver backs up to find the exact location of the phase change. The fitting point is at 20% the mass of the planet. The solver integrates until the inner and outer branch of integration agree at the fitting point with a relative error less than 10<sup>-4</sup>.
 
-There are 7 modes with different functionality described below. The `input_mode` is set in Line 29 in `main.cpp`.
+### Input Modes ##
 
+**There are 7 modes with different functionality described below. These modes can be used with the 7 .cfg files in the `run` directory. The code is then ran with `./planet mode_.cfg`.**
 
-### Primary Modes ##
-### input_mode=0 ###
+### mode0.cfg ###
 The basic capability: calculate the structure of a planet given the mass of each layer.
 
 Adjust the parameters of the `fitting_method()` function.  Input four parameters in `Mcomp` for the planet's core mass, mantle mass, hydrosphere mass, and atmosphere mass in the unit of Earth-mass.  Input four parameters in `Tgap` for the temperature of the surface and discontinuities in temperature at layer boundaries.  The first number is the size of the discontinuity betweeen the core and the mantle with the last number being the surface temperature.
@@ -75,32 +75,11 @@ The function also requires a guess for the density in each layer from `ave_rho` 
 
 The planet structure will be output as an ASCII file with pressure (GPa), interior mass (Earth mass), density (g cm<sup>-3</sup>), temperature (K), and phase of composition as a function of radius (Earth radius).
 
-### input_mode=1 ###
+### mode1.cfg ###
 
 Uses the `getmass()` function which assumes an isothermal planet. This function runs much quicker than the full solver. User provides the mass of the core, mantle, and hydrospehre in Earth-masses. No atmosphere layer is available in this solver. Outputs interior conditions to a file as in input_mode=0.
 
-### input_mode=6 ###
-
-This mode is for bulk inputs of planets using the solver from `input_mode=0` or 1. Requires a space separated file, where each row of the table lists the total mass in Earth-masses and fraction of mass in each layer for a planet.
-
-Example input file:
-
-    Mass  fCore  fMantle  fWater
-    2     0.2    0.4      0.4
-    1.5   0.5    0.39     0.1
-	
-Any remaining mass will be put into the atmosphere (i.e. 1% for the second planet).  Example input files can also be found under [run](run/).
-
-After setting the input_mode, `main.cpp` does not need to be edited. The user will be prompted after running the command `.\planet` for which solver to use, the temperature, and input and output file names.
-
-MAGRATHEA will generate an output file with mass of core, mantle, water, and atmosphere and the radius of the core, mantle, water, and planet for each line in the input file.  If the solution crosses the part of the phase diagram that the code has not been fully implemented, "Dummy EOS used" is added to the end of the raw.  If the solver cannot find the solution that meets the required accuracy with the given number of iteration, "Solution did not converge" is added.  "No solution found" is also possible in the output if the solver failed to find a solution.
-
-### input_mode=7 ###
-
-*Currently in development* Composition Finder. Takes a file of mass and radius measurements and uses a secant method to find the amount of water or atmosphere mass needed to match the radius across core to mantle ratios.
-
-### Secondary Modes ###
-### input_mode=2 ###
+### mode2.cfg ###
 
 The fastest solver available using the `twolayer()` function.  Solves planets isothermally with only two layers using an inside-out shooting method.  Built to quickly make mass-radius curves with a constant mass ratio between the layers. 
 
@@ -110,11 +89,32 @@ The funciton is:
 
 where `index`=0 is a planet with only mantle and hydrosphere (no core), =1 is only core and hydrosphere, =2 is core and mantle, `fraction` is the mass fraction of the inner layer, `Mp` is a list of planet masses, `P_surface` is surface pressure.  Returns radii of the masses inputed.
 
-### input_mode=3,4,5 ###
+
+### mode3.cfg ###
+
+This mode is for bulk inputs of planets using the solver from `input_mode=0` or 1. Requires a space separated file, where each row of the table lists the total mass in Earth-masses and fraction of mass in each layer for a planet.
+
+Example input file:
+
+    Mass  fCore  fMantle  fWater
+    2     0.2    0.4      0.4
+    1.5   0.5    0.39     0.1
+	
+Any remaining mass will be put into the atmosphere (i.e. 1% for the second planet).  Example input files can also be found in `input` directory.
+
+After setting the input_mode, `main.cpp` does not need to be edited. The user will be prompted after running the command `.\planet` for which solver to use, the temperature, and input and output file names.
+
+MAGRATHEA will generate an output file with mass of core, mantle, water, and atmosphere and the radius of the core, mantle, water, and planet for each line in the input file.  If the solution crosses the part of the phase diagram that the code has not been fully implemented, "Dummy EOS used" is added to the end of the raw.  If the solver cannot find the solution that meets the required accuracy with the given number of iteration, "Solution did not converge" is added.  "No solution found" is also possible in the output if the solver failed to find a solution.
+
+### mode4.cfg ###
+
+*Currently in development* Composition Finder. Takes a file of mass and radius measurements and uses a secant method to find the amount of water or atmosphere mass needed to match the radius across core to mantle ratios.
+
+### mode5,6,7.cfg ###
 
 These modes allow for changing an EOS in the model temporarily during a run (changing an EOS pernamently or adding an EOS discussed below). These modes can be used to measure how the uncertainty in a measurement affects a planet's radius. Mode 3 changes an EOS and uses the twolayer function. Mode 4 and Mode 5 iteratively change an EOS from an input file with the twolayer (Mode 2) and fullmodel (Mode 0) respectively.
 
-For the moment, we save documenting how to create an input file for these modes for a later date. Examples of input files that change the EOSs are included in the run directory.
+For the moment, we save documenting how to create an input file for these modes for a later date. Examples of input files that change the EOSs are included in the input directory.
 
 ## Build your own planet model ##
 
@@ -144,7 +144,7 @@ Examples:
 
 
 Index | Variable | Unit | Comment 
-------------- | ------------- | ------------- | -------------
+:---------: | :---------: | :----------: | -------------
 0 | EOS formula type | | Index in parentheses above 
 1 |	V0 | cm^3 mol^-1$ | Molar volume at reference point 
 2 |	K0 | GPa | Bulk modulus 
@@ -206,6 +206,51 @@ In the equations below, *m* is the number of formula units per unit cell. For ex
 * 1 eV/atom = 1.602&times;10<sup>-12</sup>nN<sub>A</sub> erg/mol = 9.649&times;10<sup>11</sup>n erg/mol. 
 * 1 GPa = 10<sup>10</sup>&micro;bar = 0.01 Mbar.
 
+### Several functions can be used to obtain the calculated planetary parameters ###
+The functions in the table below can be used to obtain the calculated planetary parameters after a successful solving of planetary structure.
+
+
+Function | Output unit | Comment
+-------|:--------:|-----------
+`double totalM()` | g | return the total mass of a planet
+`double totalR()` | cm | return the total radius of a planet
+`int getLayer_from_r(double r)` |  | Input radius in the RE, return the layer index `l` (from 0, count from bottom), rb(l)<=r*R⊕<rb(l+1)
+`int getLayer_from_m(double m)` |  | Input mass in the ME, return the layer index `l` (from 0, count from bottom), M(l)<=m*M⊕<M(l+1)
+`double getP(int l)` | &micro;bar | return the pressure at layer `l`
+`double getM(int l)` | g | return the pressure at layer `l`
+`double getR(int l)` | cm | return the radius at layer `l`
+`double getrho(int l)` | g/ cm<sup>3</sup> | return the ensity at layer `l`
+`double getT(int l)` | K | return the temperature at layer `l`
+`int getsize()` |  | return the total number of layers
+`vector<double> getRs()` | R⊕ | Return the radii of core, mantle, and water layer, and the total radius in the unit of earth radii.
+`vector<double> getTs()` | K | Return the temperatures at the outer side of each component interfaces as well as planet surface 
+
+Example code:
+
+    vector<double> Tgap = {0, 0, 0, 300};
+    vector<double> Mcomp =  {1.0,0.5,0.1,0.00001}; 
+    planet=fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
+    if (planet)
+    {
+      int l = planet->getLayer_from_r(1);
+      cout<<"layer:"<<l<<" P="<<planet->getP(l)<<"microbar R="<<planet->getR(l)/RE<<"REarth  rho="<<planet->getrho(l)<<"g/cm^3"<<endl;
+      l = planet->getLayer_from_m(1);
+      cout<<"layer:"<<l<<" P="<<planet->getP(l)<<"microbar M="<<planet->getM(l)/ME<<"MEarth  rho="<<planet->getrho(l)<<"g/cm^3"<<endl;
+      vector<double> Rs = planet->getRs();
+      vector<double> Ts = planet->getTs();
+      for (int i=0; i<4; i++)
+        cout<<planet->getLayer_from_r(Rs[i])<<' '<<Rs[i]<<"REarth "<<Ts[i]<<'K'<<endl;
+    }
+
+Example output:
+
+	layer:605 P=1.21568e+11microbar R=0.998631REarth  rho=1.95656g/cm^3
+	layer:547 P=1.5147e+12microbar M=0.999971MEarth  rho=11.8156g/cm^3
+	547 0.726926REarth 630.97K
+	602 0.978419REarth 460.504K
+	682 1.07939REarth 300K
+	752 1.12843REarth 300K
+
 ### Print EOS into a table ###
 
 The code can print the pressure-density relation of a built-in EOS into an ASCII table by using the `printEOS` function of the EOS object. This can be a simple way to double check the EOS is set up correctly. The table covers the pressure range from 0.1 GPa (or P<sub>0</sub> if it is larger) to 2000 GPa at the temperature T<sub>0</sub> (default 300 K) of the EOS. The output table file is located at `./tabulated/phasename.txt`.
@@ -213,19 +258,26 @@ The code can print the pressure-density relation of a built-in EOS into an ASCII
 
 ## Examples/Plots ##
 
-Within the directories `run` and `result` are example input files and output files which are described in each directory's markdown (.md) file.
+Within the directories `input` and `result` are example input files and output files which are described in each directory's markdown (.md) file.
 
 Python plotting scripts are included in the directory `plot`. Scripts are written for Python 3.6. Scripts may require matplotlib, numpy, astropy, python-ternary, regex, cmasher, and scipy.
 
+### 3D Representations of Planets ###
+
+Magrathea outputs can be imaged in the 3D open-source software Blender. Instructions and code are in https://github.com/DavidRRice/Blender-Magrathea.
+ <p align="center">
+<img width = "200" src="plot/planet1.png"/>
+ </p>
 
 ## Don't Panic (FAQ) ##
 
 **Who do I talk to?**
 
 Find our emails on our websites:
-Chenliang Huang, University of Arizona [website](https://www.lpl.arizona.edu/~huangcl/)
 
-David R. Rice, University of Nevada, Las Vegas [website](https://www.physics.unlv.edu/~drice986/)
+Chenliang Huang, Shanghai Astronomical Observatory [website](https://huang-cl.github.io/)
+
+David R. Rice, ARCO, Open University of Israel [website](https://davidrrice.github.io/)
 
 **Where is the EOS/functionality I want?**
 
@@ -252,4 +304,6 @@ Magrathea itself disappeared and its memory soon passed into the obscurity of le
 
 ---
 
-*MAGRATHEA is supported by the [Nevada Center for Astrophysics](https://www.physics.unlv.edu/~bzhang/NCfA.html), University of Nevada, Las Vegas's [Physics & Astronomy Department](https://www.physics.unlv.edu/) and [Star & Planet Formation Group](https://unlv-spfg.github.io/), and University of Arizona's [Lunar and Planetary Laboratory](https://www.lpl.arizona.edu/)*
+*MAGRATHEA is or has been supported by the [Nevada Center for Astrophysics](https://www.physics.unlv.edu/~bzhang/NCfA.html), the University of Nevada, Las Vegas's [Physics & Astronomy Department](https://www.physics.unlv.edu/) and [Star & Planet Formation Group](https://unlv-spfg.github.io/), the [Astrophysics Research Center](https://arco.org.il/) of the Open University of Israel, and the University of Arizona's [Lunar and Planetary Laboratory](https://www.lpl.arizona.edu/)*
+
+*We want to thank the many users and supporters of this code. We greatly appreciate the contributions, discussions, and support of [Allona Vazan](https://www.openu.ac.il/en/personalsites/AllonaVazan.aspx), [Michael Lozovsky](https://michloz8.wixsite.com/michael-lozovsky), [Ashkan Salamat](https://nexcl.unlv.edu/the-team/ashkan-salamat), and [Piyush Puranik](https://github.com/preppie22)*
