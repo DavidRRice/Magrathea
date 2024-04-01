@@ -187,26 +187,43 @@ Tabulated EoS can be read from files in the `tabulated` directory. A table can e
 
 ### Phase Diagrams ###
 
-To pick desired materials/phases in each layer, change the corresponding return values of `find_water_phase`, `find_Fe_phase`, or `find_Si_phase` in `phase.cpp` using conditionals to set the desired pressure and temperature where the material/phase will exist.
+To pick desired materials/phases in each layer, change the corresponding return values of `find_water_phase_default`, `find_Fe_phase_default`,  `find_Si_phase_default`, or `find_phase_gas_default` in `phase.cpp` using conditionals to set the desired pressure and temperature where the material/phase will exist.
 
 Example:
 
-	// Phase Diagram for Mantle 
-	EOS* find_Si_phase(double P, double T)
+	// Fe Default: hcp and Liquid iron
+	EOS* find_phase_Fe_default(double P, double T)
 	{
-	   if (P <= 0 || T <= 0)
-	   {
-	     return NULL;
-	   }
-   	P /= 1E10;			// convert microbar to GPa
-  	// Default Mantle
-   	if(P > 112.5 + 7E-3*T)	// Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
-     		return Si_PPv_Sakai;
-   	else if (T > 1830*pow(1+P/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
-     		return Si_Liquid_Wolf;
-   	else
-     		return Si_Pv;
- 	}
+ 	 if (P <= 0 || T <= 0)
+ 	 {
+  	  return NULL;
+  	 }
+  	 P /= 1E10;			// convert microbar to GPa
+ 	 // Default Core
+ 	 if( T > 12.8*P + 2424 && T > 13.7*P + 2328)   // melting curve from Dorogokupets et al. 2017, Scientific Reports. fcc and hcp Fe melting curve.
+    	   return Fe_liquid;
+ 	 else
+    	   return Fe_hcp;             // use hcp Iron for all regions.
+	}
+
+A number of predefined phase diagrams are available to test out which can be defined in the config files for the modes which will take changeable phase diagrams.
+
+Layer | Name to call | Details
+-------|:--------|-----------
+Core | "Fe_default" | hcp and Liquid iron
+&nbsp; | "Fe_fccbcc" | Includes low pressure fcc and bcc iron
+Mantle |  "Si_default" | Upper Mantle: Fo, Wds, Rwd, and liquid ; Lower Mantle: Brg, PPv
+&nbsp; | "Si_simple" | Brg, PPv, and liquid 
+&nbsp; | "PREM" | PREM tabulated mantle
+Hydrosphere | "water_default" | H2O Water/Ice boundaries primarily form Dunaeva et al. 2010
+&nbsp; | "water_tabulated" | AQUA Haldemann et al. 2020 Tabulated Ice, Liquid, Vapor, Supercritical
+Atmosphere | "gas_default" | Ideal Gas: Isothermal for P<100 bar. Adiabatic ideal gas for P > 100 bar
+&nbsp; | "HHe_tabulated" | H/He Gas: Isothermal ideal for P<100 bar, P>100 bar: tabulated real gas, Chabrier & Debras 2021 Y=0.275
+
+### Adding new phase diagrams ###
+
+Saving a phase diagram for repeated use and comparison with others is often helpful. There is a number of places where a new phase diagram needs to be added. First, define the new `find_phase_X_Y` in `phase.h` then create the function using conidtionals which return an EoS in `phase.cpp` folowing the example of other find_phase functions. Then later in `phase.cpp` pass the function into a phase diagram (`PhaseDgm`) and the layer to which it belongs. Give the `PhaseDgm` a new name (we suggest to continue to interate on our format) and add this new PhaseDgm near the end of `phase.h`. Lastly in `main.cpp` the parser must find the user defined string in the config file and pass it to the vector of phase diagrams in the `//Set Phase Diagrams` section. Write a new conditional for the correct layer and set the correct position in the vector to your new `PhaseDgm`.
+
 
 ### Useful unit conversions ###
 
@@ -220,7 +237,7 @@ In the equations below, *m* is the number of formula units per unit cell. For ex
 * 1 eV/atom = 1.602&times;10<sup>-12</sup>nN<sub>A</sub> erg/mol = 9.649&times;10<sup>11</sup>n erg/mol. 
 * 1 GPa = 10<sup>10</sup>&micro;bar = 0.01 Mbar.
 
-### Several functions can be used to obtain the calculated planetary parameters ###
+## Functions to obtain the calculated planetary parameters ##
 The functions in the table below can be used to obtain the calculated planetary parameters after a successful solving of planetary structure.
 
 
@@ -265,7 +282,7 @@ Example output:
 	682 1.07939REarth 300K
 	752 1.12843REarth 300K
 
-### Print EoS into a table ###
+## Print EoS into a table ##
 
 The code can print the pressure-density relation of a built-in EoS into an ASCII table by using the `printEOS` function of the EoS object. This can be a simple way to double check the EoS is set up correctly. The table covers the pressure range from 0.1 GPa (or P<sub>0</sub> if it is larger) to 2000 GPa at the temperature T<sub>0</sub> (default 300 K) of the EoS. The output table file is located at `./tabulated/phasename.txt`.
 
@@ -285,7 +302,7 @@ Magrathea outputs can be imaged in the 3D open-source software Blender. Instruct
 
 ## Don't Panic (FAQ) ##
 
-**Who do I talk to?**
+_**Who do I talk to?**_
 
 Find our emails on our websites:
 
@@ -293,19 +310,19 @@ Chenliang Huang, Shanghai Astronomical Observatory [website](https://huang-cl.gi
 
 David R. Rice, ARCO, Open University of Israel [website](https://davidrrice.github.io/)
 
-**Where is the EoS/functionality I want?**
+_**Where is the EoS/functionality I want?**_
 
 Open an issue with details of what you need. 
 
-**What if I need to model a planet, but I'm currently being tortured by Vogon poetry?**
+_**What if I need to model a planet, but I'm currently being tortured by Vogon poetry?**_
 
 We are open to collaborations! Emails found on websites above.
 
-**Where do I find other codes for exoplanet modeling?**
+_**Where do I find other codes for exoplanet modeling?**_
 
 MAGRATHEA and many other useful exoplanet-related codes are archived on NASA's [Exoplanet Modeling and Analysis Center](https://emac.gsfc.nasa.gov/).
 
-**Where does the name MAGRATHEA come from?**
+_**Where does the name MAGRATHEA come from?**_
 
 Magrathea is a fictional planet in Douglas Adams's *The Hitchiker's Guide to the Galaxy*: 
 
