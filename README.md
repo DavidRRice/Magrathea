@@ -130,16 +130,16 @@ For the moment, we save documenting how to create an input file for these modes 
 
 ## Build your own planet model ##
 
-MAGRATHEA is built for model flexibility with transparent storage structures for equations of state (EoS). We make it easy for users to build a reproduceable model and cite the material measurements that have gone into the model. EoSs built-in are described in MAGRATHEA.pdf.
+MAGRATHEA is built for model flexibility with transparent storage structures for equations of state (EoS). We make it easy for users to build a reproduceable model and cite the material measurements that have gone into the model.
 
 The built-in EoSs for various planet building materials and phases are listed in the file `EOSlist.h`.  The detailed definition of each one can be found in `EOSlist.cpp`.
 
 
 ### Adding new equations of state ###
 
-The code takes a new EoS in the format of (0) 3rd order Birch-Murnaghan, (1) 4th order Birch-Murnaghan, (2) Vinet, (3) Holzapfel, (4) Keane, (6) Ideal Gas, (7) Density-Pressure input table from file for interpolation, (8-12) same as 0-4 in combination with RTPress. 
+The code takes a new EoS in the format of (0) 3rd order Birch-Murnaghan, (1) 4th order Birch-Murnaghan, (2) Vinet, (3) Holzapfel, (4) Keane, (6) Ideal Gas, (7) Density-Pressure input table or Pressure-Temperature-Density-dT/dP_S input table from file for interpolation, (8-12) same as 0-4 in combination with RTPress. 
 
-New phases should be listed into the file `EOSlist.h` and defined in `EOSlist.cpp`.
+New phases should be listed into the file `EOSlist.h`, defined in `EOSlist.cpp`, and deleted in `main.cpp`.
 
 Examples:
 
@@ -153,7 +153,7 @@ Examples:
 	double Si_PPv_Sakai_array[][2] = {{0,4}, {1,24.73}, {2,203}, {3,5.35}, {5,mMg+mSi+3*mO}, {7,848}, {8,1.47}, {9,2.7}, {10,0.93}, {14,5}};
 	EOS *Si_PPv_Sakai = new EOS("Si PPv (Sakai)", Si_PPv_Sakai_array, sizeof(Si_PPv_Sakai_array)/2/sizeof(Si_PPv_Sakai_array[0][0]));
 
-
+Analytical EoS are defined by an array with as many parameters as needed from the table below. For example, the Epsilon Iron EoS above has a bulk modulus of 177.7 GPa.
 
 Index | Variable | Unit | Comment 
 :---------: | :---------: | :----------: | -------------
@@ -182,6 +182,8 @@ Index | Variable | Unit | Comment
 22 | c_p2 | 10^7 erg g^-1 K  | Coefficient for specific heat capacity
 23 | Debye approx |  | Positive number for Debye, otherwise Einstein 
 24 |thermal type | | See Paper
+
+Tabulated EoS can be read from files in the `tabulated` directory. A table can either have 2 or 4 columns. If 2, the user defines the density at each pressure and the code will assume the material is isothermal and interpolate the density from pressure alone. The table must monotonically increase in pressure. If 4 columns are provided, they must be pressure, temperature, density, and the adiabatic gradient (dT/dP_S). The code will linearly interpolate the density from both the temperature and pressure. The table must be rectangular in pressure and temperature with each temperature listed for a pressure before moving to the next pressure, and both must be increasing.
 
 ### Phase Diagrams ###
 
