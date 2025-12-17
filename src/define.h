@@ -66,6 +66,7 @@ const double mC=12.011;
 const double mCa=40.078;	// calcium molar mass in grams
 const double mAl=26.9815;	// aluminum molar mass in grams
 const double mNa=22.9898;	// sodium molar mass in grams
+const double mS=32.065;
 const double NA=6.02214E23;
 const double AAtocm3 = 0.3011;	// 1 \AA^3 equivalents to NA / (2*10^24) = 0.3011 cm^3 / mol.
 const double eV_erg = 1.60217710E-12;	// 1 eV=1.6E-12 erg

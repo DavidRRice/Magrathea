@@ -72,6 +72,17 @@ int Settings::LoadSettings() {
   return counter;
 }
 
+bool Settings::HasOption(const std::string& name) const {
+  for (const option& setting : settings)
+    if (setting.name == name) return true;
+  return false;
+}
+
+double Settings::GetOptionDouble(std::string name, double default_val) {
+  if (!HasOption(name)) return default_val;
+  return GetOptionDouble(name); // uses the existing strict version (still type-checks)
+}
+
 double Settings::GetOptionDouble(std::string name) {
   std::string error = name + " not found.";
   if (settings.empty()) {

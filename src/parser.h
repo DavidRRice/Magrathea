@@ -50,6 +50,10 @@ public:
    */
   int LoadSettings();
 
+
+  bool HasOption(const std::string& name) const;
+  double GetOptionDouble(std::string name, double default_val);
+
   /**
    * @brief Get the option as a double. Throws exception if value is not double.
    * 

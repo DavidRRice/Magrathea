@@ -54,6 +54,7 @@ EOS* find_phase_Fe_fccbcc(double P, double T);
 //Mantle
 EOS* find_phase_Si_default(double P, double T);
 EOS* find_phase_Si_simple(double P, double T);
+EOS* find_phase_mant_mix(double P, double T);
 EOS* find_phase_PREM(double P, double T);
 EOS* find_phase_C_simple(double P, double T);
 EOS* find_phase_SiC(double P, double T);
@@ -79,7 +80,7 @@ struct phase_params
   PhaseDgm* cmpn;
 };
 
-extern PhaseDgm core, core1, mant, mant1, mant2, mant3, mant4, water, water1, water2, atm, atm1;
+extern PhaseDgm core, core1, mant, mant1, mant2, mant3, mant4, mant5, water, water1, water2, atm, atm1;
 // Atmosphere doesn't support self-consistent phase diagram.  Multiple components with each masses specified have to be constructed in order to use multi-phase atmosphere.
 
 #endif	// PHASE_H_

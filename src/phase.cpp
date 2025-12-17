@@ -329,6 +329,31 @@ EOS* find_phase_Si_default(double P, double T)
 }
 
 // ---------------------------------
+// Si Mix
+EOS* find_phase_mant_mix(double P, double T)
+{
+  if (P <= 0 || T <= 0)
+  {
+    return NULL;
+  }
+
+  P /= 1E10;			// convert microbar to GPa
+  if(P > 112.5 + 7E-3*T)      // Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
+    return PPvMix;
+  else if (T > 1830*pow(1+P/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
+    return Si_Liquid_Wolf;
+  else if (P > 24.3+(-2.12E-4*T)+(-3.49E-7*pow(T, 2))) // Dorogokupets et al. 2015
+    return BrgMix;
+  else if (P > 8.69+6.05E-3*T)
+    return RwdMix;
+  else if (P > 9.45+2.76E-3*T)
+    return WdsMix;
+  else
+  {
+    return OlMix;
+  }
+}
+// ---------------------------------
 // Si Simplified: Brg, PPv, and liquid 
 EOS* find_phase_Si_simple(double P, double T)
 {
@@ -670,9 +695,10 @@ PhaseDgm core("core", find_phase_Fe_default); //Phase Diagrams for Core
 PhaseDgm core1("core1", find_phase_Fe_fccbcc); 
 PhaseDgm mant("mantle", find_phase_Si_default); //Phase Diagrams for Mantle
 PhaseDgm mant1("mantle1", find_phase_Si_simple); 
-PhaseDgm mant2("mantle2", find_phase_PREM); 
-PhaseDgm mant3("mantle3", find_phase_C_simple); //Phase Diagram for Carbon Mantle
-PhaseDgm mant4("mantle4", find_phase_SiC); //Phase Diagram for Carbide Mantle
+PhaseDgm mant2("mantle2", find_phase_mant_mix); //Phase Diagram for Carbide Mantle
+PhaseDgm mant3("mantle3", find_phase_PREM); 
+PhaseDgm mant4("mantle4", find_phase_C_simple); //Phase Diagram for Carbon Mantle
+PhaseDgm mant5("mantle5", find_phase_SiC); //Phase Diagram for Carbide Mantle
 PhaseDgm water("water", find_phase_water_default); //Phase Diagrams for Hydrosphere
 PhaseDgm water1("water1", find_phase_water_tabulated);
 PhaseDgm water2("water2", find_phase_water_legacy);

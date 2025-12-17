@@ -1,5 +1,5 @@
 #include "EOSlist.h"
-
+#include "mixing.h"
 /*
   phasetype is the name of a phase. The comment about the EOS used for the phase should be in the parentheses separated by a space.
 0.	eqntype. 8-12 for RTpress style.
@@ -104,7 +104,7 @@ EOS *Fe_15Si = new EOS("Fe-15Si (Wicks)", Fe_15Si_array, sizeof(Fe_15Si_array)/2
 
 // -----------------------------------
 // Iron, Seager et al. 2007 ApJ 669:1279, tabulate EOS
-EOS *Fe_Seager = new EOS("Fe (Seager)", "./tabulated/iron.txt");
+EOS *Fe_Seager = (new EOS("Fe (Seager)", "./tabulated/iron.txt"))->setmmol(mFe);
 
 // -----------------------------------
 // Iron Dummy, Used to fill in phase space that no EOS provided.
@@ -171,11 +171,31 @@ double En_array[][2] = {{0,0}, {1,(mMg+mSi+3*mO)/3.215}, {2,111}, {3,7}, {5,mMg+
 EOS *En = new EOS("En/Opx (Sotin)", En_array, sizeof(En_array)/2/sizeof(En_array[0][0]));
 
 //--------------------------------------
-// Magnesiowustite, MgO, Sotin et al. 2007, Icarus,
+// Periclase (pe), Magnesiowustite, MgO, Sotin et al. 2007, Icarus,
 
 double Mw_array[][2] = {{0,0}, {1,(mMg+mO)/3.584}, {2,157}, {3,4.4}, {5,mMg+mO}, {7,430}, {8, 1.45}, {9,3}, {14,2}};
 
 EOS *Mw = new EOS("Magnesiowustite (Sotin)", Mw_array, sizeof(Mw_array)/2/sizeof(Mw_array[0][0]));
+
+// -----------------------------------
+// B2 Phase MgO, Magnesiowustite, Musella, Mazevet, Guyot 2018 Physics Review B
+
+double MgO_array[][2] = {{0,3}, {1,10.970}, {2,120.76}, {3,4.803}, {5,mMg+mO}, {7,447.906}, {8,1.755}, {9,-0.530}, {10,-0.07579}, {14,2}, {15,20}};
+
+EOS *MgO_raw = new EOS("MgO (Musella)", MgO_array, sizeof(MgO_array)/2/sizeof(MgO_array[0][0]));
+
+// -----------------------------------
+// B1 FeO, Wüstite (wu), Fischer et al. 2011, Earth and Planetary Science letters
+double B1FeO_array[][2] = {{0,0}, {1,12.256}, {2,149.4}, {3,3.6}, {5,mFe+mO}, {7,417}, {8,1.41}, {9,0.5}, {10,0}, {14,2}};
+
+EOS *B1FeO_raw = new EOS("B1FeO (Fischer)", B1FeO_array, sizeof(B1FeO_array)/2/sizeof(B1FeO_array[0][0]));
+
+// -----------------------------------
+// B8 FeO, Wüstite (wu), Fischer et al. 2011, Earth and Planetary Science letters
+double B8FeO_array[][2] = {{0,0}, {1,11.997}, {2,137.8}, {3,4}, {5,mFe+mO}, {7,417}, {8,1.73}, {9,1.0}, {10,0}, {14,2}};
+
+EOS *B8FeO = new EOS("B8FeO (Fischer)", B8FeO_array, sizeof(B8FeO_array)/2/sizeof(B8FeO_array[0][0]));
+
 
 // ---------------------------------
 // Bridgmanite/Perovskite, MgSiO3, Oganov & Ono 2004, Nature, GGA
@@ -223,7 +243,7 @@ EOS *PPv_Doro = new EOS("PPv (Dorogokupets)", PPv_Doro_array, sizeof(PPv_Doro_ar
 
 // -----------------------------------
 // Silicate PREM mantle EOS in Appendix F.1 of Stacey & Davis 2008, used in Zeng 2016
-EOS *Si_PREM = new EOS("Si (PREM)", "./tabulated/SiPREM.txt");
+EOS *Si_PREM = (new EOS("Si (PREM)", "./tabulated/SiPREM.txt"))->setmmol(mMg+mSi+3*mO);
 
 // -----------------------------------
 // Silicate PREM BM2 extrapolation used in Zeng 2016
@@ -232,7 +252,7 @@ EOS *Si_BM2fit = new EOS("Si (PREM, Zeng)", Si_BM2fit_array, sizeof(Si_BM2fit_ar
 
 // -----------------------------------
 // Silicate, Seager et al. 2007 ApJ 669:1279, tabulate EOS
-EOS *Si_Seager = new EOS("Si (Seager)", "./tabulated/silicate.txt");
+EOS *Si_Seager = (new EOS("Si (Seager)", "./tabulated/silicate.txt"))->setmmol(mMg+mSi+3*mO);
 
 // ---------------------------------
 // Si Dummy, Used to fill in phase space that no EOS provided.
@@ -257,12 +277,12 @@ double dTdP_Si_Dummy (double P, double T)
 // -----------------------------------
 // Water, Bollengier et al. (2019), as tabulated through SeaFreeze, Journaux et al. 2020, JGR Planets, 124, 1
 //DEFAULT
-EOS *Water_SF = new EOS("Water (Bollengier/SF)", "./tabulated/SFwater1.txt");
+EOS *Water_SF = (new EOS("Water (Bollengier/SF)", "./tabulated/SFwater1.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water Liquid, IAPWS-R6-95, Wagner & PruB 2022, JPCRD, 31, 387
 //DEFAULT
-EOS *Water_IAPWS = new EOS("Water (IAPWS)", "./tabulated/water_IAPWS95.txt");
+EOS *Water_IAPWS = (new EOS("Water (IAPWS)", "./tabulated/water_IAPWS95.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Liquid water, ExoPlex, unkown source
@@ -279,38 +299,38 @@ EOS *Water = new EOS("Water (Valencia)", Water_array, sizeof(Water_array)/2/size
 // -----------------------------------
 // Water & Super Critical, Brown 2018, Fluid Phase Equilib., 463, 18, tabulated by SeaFreeze
 // DEFAULT
-EOS *Water_Brown = new EOS("Water SC (Brown)", "./tabulated/water_Brown.txt");
+EOS *Water_Brown = (new EOS("Water SC (Brown)", "./tabulated/water_Brown.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Supercritical water. Mazevet et al. 2019, A&A 621
 // https://www.ioffe.ru/astro/H2O/index.html
 // DEFAULT
-EOS *Water_sc_Mazevet = new EOS("Water SC (Mazevet)", H2OSC);
+EOS *Water_sc_Mazevet = (new EOS("Water SC (Mazevet)", H2OSC))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice, SeaFreeze tabulated, Journaux et al. 2020, JGR Planets, 124, 1
 // DEFAULT
-EOS *IceIh_SF = new EOS("Ice Ih (SeaFreeze)", "./tabulated/SFiceih.txt");
+EOS *IceIh_SF = (new EOS("Ice Ih (SeaFreeze)", "./tabulated/SFiceih.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice, SeaFreeze tabulated, Journaux et al. 2020, JGR Planets, 124, 1
 // DEFAULT
-EOS *IceII_SF = new EOS("Ice II (SeaFreeze)", "./tabulated/SFiceii.txt");
+EOS *IceII_SF = (new EOS("Ice II (SeaFreeze)", "./tabulated/SFiceii.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice, SeaFreeze tabulated, Journaux et al. 2020, JGR Planets, 124, 1
 // DEFAULT
-EOS *IceIII_SF = new EOS("Ice III (SeaFreeze)", "./tabulated/SFiceiii.txt");
+EOS *IceIII_SF = (new EOS("Ice III (SeaFreeze)", "./tabulated/SFiceiii.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice, SeaFreeze tabulated, Journaux et al. 2020, JGR Planets, 124, 1
 // DEFAULT
-EOS *IceV_SF = new EOS("Ice V (SeaFreeze)", "./tabulated/SFiceV.txt");
+EOS *IceV_SF = (new EOS("Ice V (SeaFreeze)", "./tabulated/SFiceV.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice, SeaFreeze tabulated, Journaux et al. 2020, JGR Planets, 124, 1
 // DEFAULT
-EOS *IceVI_SF= new EOS("Ice VI (SeaFreeze)", "./tabulated/SFiceVI.txt");
+EOS *IceVI_SF= (new EOS("Ice VI (SeaFreeze)", "./tabulated/SFiceVI.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Ice Ih, Feistel & Wagner 2006, Acuna et al. 2021
@@ -424,15 +444,15 @@ EOS *IceX_HS = new EOS("Ice X (Hermann)", IceX_HS_array, sizeof(IceX_HS_array)/2
 
 // -----------------------------------
 // Ice, Seager et al. 2007 ApJ 669:1279, tabulate EOS
-EOS *Ice_Seager = new EOS("Ice (Seager)", "./tabulated/water.txt");
+EOS *Ice_Seager = (new EOS("Ice (Seager)", "./tabulated/water.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice/Supercritical/Vapor, AQUA tabulated, Haldermann et al. 2022, A&A 643, A105 
-EOS *H2O_AQUA = new EOS("H2O (AQUA)", "./tabulated/AQUA.txt");
+EOS *H2O_AQUA = (new EOS("H2O (AQUA)", "./tabulated/AQUA.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Water/Ice, SeaFreeze tabulated, Journaux et al. 2020, JGR Planets, 124, 1
-EOS *H2O_SeaFreeze = new EOS("H2O (SeaFreeze)", "./tabulated/SeaFreeze.txt");
+EOS *H2O_SeaFreeze = (new EOS("H2O (SeaFreeze)", "./tabulated/SeaFreeze.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Ice Dummy,  Used to fill in phase space that no EOS provided.
@@ -535,11 +555,11 @@ EOS *watervapor = new EOS("Water vapor", watervapor_array, 3);
 // -----------------------------------
 // Water Vapor, IAPWS-R6-95, Wagner & PruB 2022, JPCRD, 31, 387
 // Default Hydrosphere
-EOS *Water_Vap_IAPWS = new EOS("H20 Vapor (IAPWS)", "./tabulated/water_IAPWS95.txt");
+EOS *Water_Vap_IAPWS = (new EOS("H20 Vapor (IAPWS)", "./tabulated/water_IAPWS95.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // H/He, Chabrier & Debras 2021 Apj, Y=0.275
-EOS *Gas_hhe = new EOS("H/He (Chabrier)", "./tabulated/ChabrierHHe0275.txt");
+EOS *Gas_hhe = (new EOS("H/He (Chabrier)", "./tabulated/ChabrierHHe0275.txt"))->setmmol(2.3345);
 
 // ==========  CARBON  ================
 
@@ -590,7 +610,7 @@ EOS *SiC_B1_Vinet = new EOS("SiC B1 Vinet (Miozzi)", SiC_B1_Vinet_array, sizeof(
 // Anorthite (an), CaAl2Si2O8, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 40(3) GPa, G0' = 1.1(5)
 
-double Anorthite_array[][2] = {{0,2}, {1,100.61}, {2,84.5}, {3,4.0}, {5,mCa+2*mAl+2*mSi+8*mO}, {7,752}, {8,0.39}, {9,1.0}, {10,0}, {14,13}};
+double Anorthite_array[][2] = {{0,0}, {1,100.61}, {2,84.5}, {3,4.0}, {5,mCa+2*mAl+2*mSi+8*mO}, {7,752}, {8,0.39}, {9,1.0}, {10,0}, {14,13}};
 
 EOS *Anorthite = new EOS("Anorthite (Stixrude)", Anorthite_array, sizeof(Anorthite_array)/2/sizeof(Anorthite_array[0][0]));
 
@@ -598,7 +618,7 @@ EOS *Anorthite = new EOS("Anorthite (Stixrude)", Anorthite_array, sizeof(Anorthi
 // Spinel (sp), MgAl2O4, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 108(10) GPa, G0' = 0.4(5)
 
-double Spinel_array[][2] = {{0,2}, {1,159.05}, {2,197.1}, {3,5.7}, {5,mMg+2*mAl+4*mO}, {7,843}, {8,1.02}, {9,2.7}, {10,0}, {14,7}};
+double Spinel_array[][2] = {{0,0}, {1,159.05}, {2,197.1}, {3,5.7}, {5,mMg+2*mAl+4*mO}, {7,843}, {8,1.02}, {9,2.7}, {10,0}, {14,7}};
 
 EOS *Spinel = new EOS("Spinel spinel (Stixrude)", Spinel_array, sizeof(Spinel_array)/2/sizeof(Spinel_array[0][0]));
 
@@ -606,7 +626,7 @@ EOS *Spinel = new EOS("Spinel spinel (Stixrude)", Spinel_array, sizeof(Spinel_ar
 // Fayalite (fa), olivine, Fe2SiO4, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 51(2) GPa, G0' = 1.5(5)
 
-double Fayalite_array[][2] = {{0,2}, {1,46.29}, {2,135.0}, {3,4.2}, {5,2*mFe+mSi+4*mO}, {7,619}, {8,1.06}, {9,3.6}, {10,0}, {14,7}};
+double Fayalite_array[][2] = {{0,0}, {1,46.29}, {2,135.0}, {3,4.2}, {5,2*mFe+mSi+4*mO}, {7,619}, {8,1.06}, {9,3.6}, {10,0}, {14,7}};
 
 EOS *Fayalite = new EOS("Fayalite olivine (Stixrude)", Fayalite_array, sizeof(Fayalite_array)/2/sizeof(Fayalite_array[0][0]));
 
@@ -614,7 +634,7 @@ EOS *Fayalite = new EOS("Fayalite olivine (Stixrude)", Fayalite_array, sizeof(Fa
 // Fe-Wadsleyite (fewa), Fe2SiO4, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 72(12) GPa, G0' = 1.4(5)
 
-double Fe_Wadsleyite_array[][2] = {{0,2}, {1,42.80}, {2,169.0}, {3,4.3}, {5,2*mFe+mSi+4*mO}, {7,665}, {8,1.21}, {9,2.0}, {10,0}, {14,7}};
+double Fe_Wadsleyite_array[][2] = {{0,0}, {1,42.80}, {2,169.0}, {3,4.3}, {5,2*mFe+mSi+4*mO}, {7,665}, {8,1.21}, {9,2.0}, {10,0}, {14,7}};
 
 EOS *Fe_Wadsleyite = new EOS("Fe-Wadsleyite (Stixrude)", Fe_Wadsleyite_array, sizeof(Fe_Wadsleyite_array)/2/sizeof(Fe_Wadsleyite_array[0][0]));
 
@@ -622,7 +642,7 @@ EOS *Fe_Wadsleyite = new EOS("Fe-Wadsleyite (Stixrude)", Fe_Wadsleyite_array, si
 // Fe-Ringwoodite (feri), Fe2SiO4, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 92(10) GPa, G0' = 1.4(5)
 
-double Fe_Ringwoodite_array[][2] = {{0,2}, {1,41.86}, {2,213.0}, {3,4.2}, {5,2*mFe+mSi+4*mO}, {7,679}, {8,1.27}, {9,2.4}, {10,0}, {14,7}};
+double Fe_Ringwoodite_array[][2] = {{0,0}, {1,41.86}, {2,213.0}, {3,4.2}, {5,2*mFe+mSi+4*mO}, {7,679}, {8,1.27}, {9,2.4}, {10,0}, {14,7}};
 
 EOS *Fe_Ringwoodite = new EOS("Fe-Ringwoodite (Stixrude)", Fe_Ringwoodite_array, sizeof(Fe_Ringwoodite_array)/2/sizeof(Fe_Ringwoodite_array[0][0]));
 
@@ -630,7 +650,7 @@ EOS *Fe_Ringwoodite = new EOS("Fe-Ringwoodite (Stixrude)", Fe_Ringwoodite_array,
 // Enstatite (en), Mg2Si2O6, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 77(1) GPa, G0' = 1.5(1)
 
-double Enstatite_array[][2] = {{0,2}, {1,62.68}, {2,107.0}, {3,7.0}, {5,2*mMg+2*mSi+6*mO}, {7,812}, {8,0.78}, {9,3.4}, {10,0}, {14,10}};
+double Enstatite_array[][2] = {{0,0}, {1,62.68}, {2,107.0}, {3,7.0}, {5,2*mMg+2*mSi+6*mO}, {7,812}, {8,0.78}, {9,3.4}, {10,0}, {14,10}};
 
 EOS *Enstatite = new EOS("Enstatite (Stixrude)", Enstatite_array, sizeof(Enstatite_array)/2/sizeof(Enstatite_array[0][0]));
 
@@ -638,7 +658,7 @@ EOS *Enstatite = new EOS("Enstatite (Stixrude)", Enstatite_array, sizeof(Enstati
 // Ferrosilite (fs), Fe2Si2O6, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 52(5) GPa, G0' = 1.5(5)
 
-double Ferrosilite_array[][2] = {{0,2}, {1,65.94}, {2,101.0}, {3,7.0}, {5,2*mFe+2*mSi+6*mO}, {7,674}, {8,0.72}, {9,3.4}, {10,0}, {14,10}};
+double Ferrosilite_array[][2] = {{0,0}, {1,65.94}, {2,101.0}, {3,7.0}, {5,2*mFe+2*mSi+6*mO}, {7,674}, {8,0.72}, {9,3.4}, {10,0}, {14,10}};
 
 EOS *Ferrosilite = new EOS("Ferrosilite (Stixrude)", Ferrosilite_array, sizeof(Ferrosilite_array)/2/sizeof(Ferrosilite_array[0][0]));
 
@@ -646,7 +666,7 @@ EOS *Ferrosilite = new EOS("Ferrosilite (Stixrude)", Ferrosilite_array, sizeof(F
 // Diopside (di), CaMgSi2O6, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 67(2) GPa, G0' = 1.4(5)
 
-double Diopside_array[][2] = {{0,2}, {1,66.04}, {2,112.0}, {3,5.2}, {5,mCa+mMg+2*mSi+6*mO}, {7,782}, {8,0.96}, {9,1.5}, {10,0}, {14,10}};
+double Diopside_array[][2] = {{0,0}, {1,66.04}, {2,112.0}, {3,5.2}, {5,mCa+mMg+2*mSi+6*mO}, {7,782}, {8,0.96}, {9,1.5}, {10,0}, {14,10}};
 
 EOS *Diopside = new EOS("Diopside (Stixrude)", Diopside_array, sizeof(Diopside_array)/2/sizeof(Diopside_array[0][0]));
 
@@ -654,7 +674,7 @@ EOS *Diopside = new EOS("Diopside (Stixrude)", Diopside_array, sizeof(Diopside_a
 // Hedenbergite (he), CaFeSi2O6, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 61(1) GPa, G0' = 1.2(5)
 
-double Hedenbergite_array[][2] = {{0,2}, {1,67.87}, {2,119.0}, {3,5.2}, {5,mCa+mFe+2*mSi+6*mO}, {7,702}, {8,0.94}, {9,1.5}, {10,0}, {14,10}};
+double Hedenbergite_array[][2] = {{0,0}, {1,67.87}, {2,119.0}, {3,5.2}, {5,mCa+mFe+2*mSi+6*mO}, {7,702}, {8,0.94}, {9,1.5}, {10,0}, {14,10}};
 
 EOS *Hedenbergite = new EOS("Hedenbergite (Stixrude)", Hedenbergite_array, sizeof(Hedenbergite_array)/2/sizeof(Hedenbergite_array[0][0]));
 
@@ -662,7 +682,7 @@ EOS *Hedenbergite = new EOS("Hedenbergite (Stixrude)", Hedenbergite_array, sizeo
 // HP-clinopyroxene (hpcpx), Mg2Si2O6, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 88(1) GPa, G0' = 1.8(1)
 
-double HP_clinopyroxene_array[][2] = {{0,2}, {1,60.76}, {2,116.0}, {3,6.2}, {5,2*mMg+2*mSi+6*mO}, {7,824}, {8,1.12}, {9,0.2}, {10,0}, {14,10}};
+double HP_clinopyroxene_array[][2] = {{0,0}, {1,60.76}, {2,116.0}, {3,6.2}, {5,2*mMg+2*mSi+6*mO}, {7,824}, {8,1.12}, {9,0.2}, {10,0}, {14,10}};
 
 EOS *HP_clinopyroxene = new EOS("HP-clinopyroxene (Stixrude)", HP_clinopyroxene_array, sizeof(HP_clinopyroxene_array)/2/sizeof(HP_clinopyroxene_array[0][0]));
 
@@ -670,7 +690,7 @@ EOS *HP_clinopyroxene = new EOS("HP-clinopyroxene (Stixrude)", HP_clinopyroxene_
 // Mg-Akimotoite (mgak), MgSiO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 132(8) GPa, G0' = 1.6(5)
 
-double Mg_Akimotoite_array[][2] = {{0,2}, {1,26.35}, {2,211.0}, {3,5.6}, {5,mMg+mSi+3*mO}, {7,934}, {8,1.19}, {9,2.3}, {10,0}, {14,5}};
+double Mg_Akimotoite_array[][2] = {{0,0}, {1,26.35}, {2,211.0}, {3,5.6}, {5,mMg+mSi+3*mO}, {7,934}, {8,1.19}, {9,2.3}, {10,0}, {14,5}};
 
 EOS *Mg_Akimotoite = new EOS("Mg-Akimotoite (Stixrude)", Mg_Akimotoite_array, sizeof(Mg_Akimotoite_array)/2/sizeof(Mg_Akimotoite_array[0][0]));
 
@@ -678,7 +698,7 @@ EOS *Mg_Akimotoite = new EOS("Mg-Akimotoite (Stixrude)", Mg_Akimotoite_array, si
 // Fe-Akimotoite (feak), FeSiO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 150(10) GPa, G0' = 1.6(5)
 
-double Fe_Akimotoite_array[][2] = {{0,2}, {1,26.85}, {2,211.0}, {3,5.6}, {5,mFe+mSi+3*mO}, {7,888}, {8,1.19}, {9,2.3}, {10,0}, {14,5}};
+double Fe_Akimotoite_array[][2] = {{0,0}, {1,26.85}, {2,211.0}, {3,5.6}, {5,mFe+mSi+3*mO}, {7,888}, {8,1.19}, {9,2.3}, {10,0}, {14,5}};
 
 EOS *Fe_Akimotoite = new EOS("Fe-Akimotoite (Stixrude)", Fe_Akimotoite_array, sizeof(Fe_Akimotoite_array)/2/sizeof(Fe_Akimotoite_array[0][0]));
 
@@ -686,7 +706,7 @@ EOS *Fe_Akimotoite = new EOS("Fe-Akimotoite (Stixrude)", Fe_Akimotoite_array, si
 // Pyrope (py), Mg3Al2Si3O12, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 94(2) GPa, G0' = 1.4(2)
 
-double Pyrope_array[][2] = {{0,2}, {1,113.08}, {2,170.0}, {3,4.1}, {5,3*mMg+2*mAl+3*mSi+12*mO}, {7,823}, {8,1.01}, {9,1.4}, {10,0}, {14,20}};
+double Pyrope_array[][2] = {{0,0}, {1,113.08}, {2,170.0}, {3,4.1}, {5,3*mMg+2*mAl+3*mSi+12*mO}, {7,823}, {8,1.01}, {9,1.4}, {10,0}, {14,20}};
 
 EOS *Pyrope = new EOS("Pyrope (Stixrude)", Pyrope_array, sizeof(Pyrope_array)/2/sizeof(Pyrope_array[0][0]));
 
@@ -694,7 +714,7 @@ EOS *Pyrope = new EOS("Pyrope (Stixrude)", Pyrope_array, sizeof(Pyrope_array)/2/
 // Mg-Majorite (mgmj), Mg4Si4O12, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 85(2) GPa, G0' = 1.4(2)
 
-double Mg_Majorite_array[][2] = {{0,2}, {1,114.32}, {2,165.0}, {3,4.2}, {5,4*mMg+4*mSi+12*mO}, {7,822}, {8,0.98}, {9,1.5}, {10,0}, {14,20}};
+double Mg_Majorite_array[][2] = {{0,0}, {1,114.32}, {2,165.0}, {3,4.2}, {5,4*mMg+4*mSi+12*mO}, {7,822}, {8,0.98}, {9,1.5}, {10,0}, {14,20}};
 
 EOS *Mg_Majorite = new EOS("Mg-Majorite (Stixrude)", Mg_Majorite_array, sizeof(Mg_Majorite_array)/2/sizeof(Mg_Majorite_array[0][0]));
 
@@ -702,7 +722,7 @@ EOS *Mg_Majorite = new EOS("Mg-Majorite (Stixrude)", Mg_Majorite_array, sizeof(M
 // Almandine (al), Fe3Al2Si3O12, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 96(1) GPa, G0' = 1.4(1)
 
-double Almandine_array[][2] = {{0,2}, {1,115.43}, {2,174.0}, {3,4.9}, {5,3*mFe+2*mAl+3*mSi+12*mO}, {7,741}, {8,1.06}, {9,1.4}, {10,0}, {14,20}};
+double Almandine_array[][2] = {{0,0}, {1,115.43}, {2,174.0}, {3,4.9}, {5,3*mFe+2*mAl+3*mSi+12*mO}, {7,741}, {8,1.06}, {9,1.4}, {10,0}, {14,20}};
 
 EOS *Almandine = new EOS("Almandine (Stixrude)", Almandine_array, sizeof(Almandine_array)/2/sizeof(Almandine_array[0][0]));
 
@@ -710,7 +730,7 @@ EOS *Almandine = new EOS("Almandine (Stixrude)", Almandine_array, sizeof(Almandi
 // Grossular (gr), Ca3Al2Si3O12, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 109(4) GPa, G0' = 1.2(1)
 
-double Grossular_array[][2] = {{0,2}, {1,125.12}, {2,167.0}, {3,3.9}, {5,3*mCa+2*mAl+3*mSi+12*mO}, {7,823}, {8,1.05}, {9,1.9}, {10,0}, {14,20}};
+double Grossular_array[][2] = {{0,0}, {1,125.12}, {2,167.0}, {3,3.9}, {5,3*mCa+2*mAl+3*mSi+12*mO}, {7,823}, {8,1.05}, {9,1.9}, {10,0}, {14,20}};
 
 EOS *Grossular = new EOS("Grossular (Stixrude)", Grossular_array, sizeof(Grossular_array)/2/sizeof(Grossular_array[0][0]));
 
@@ -718,7 +738,7 @@ EOS *Grossular = new EOS("Grossular (Stixrude)", Grossular_array, sizeof(Grossul
 // Quartz (qtz), SiO2, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 45(1) GPa, G0' = 1.0(1)
 
-double Quartz_array[][2] = {{0,2}, {1,23.67}, {2,50.0}, {3,4.3}, {5,mSi+2*mO}, {7,816}, {8,0.05}, {9,1.0}, {10,0.05}, {14,3}};
+double Quartz_array[][2] = {{0,0}, {1,23.67}, {2,50.0}, {3,4.3}, {5,mSi+2*mO}, {7,816}, {8,0.05}, {9,1.0}, {10,0.05}, {14,3}};
 
 EOS *Quartz = new EOS("Quartz (Stixrude)", Quartz_array, sizeof(Quartz_array)/2/sizeof(Quartz_array[0][0]));
 
@@ -726,7 +746,7 @@ EOS *Quartz = new EOS("Quartz (Stixrude)", Quartz_array, sizeof(Quartz_array)/2/
 // Coesite (coes), SiO2, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 62(1) GPa, G0' = 1.2(5)
 
-double Coesite_array[][2] = {{0,2}, {1,20.66}, {2,114.0}, {3,4.0}, {5,mSi+2*mO}, {7,857}, {8,0.39}, {9,1.0}, {10,0}, {14,3}};
+double Coesite_array[][2] = {{0,0}, {1,20.66}, {2,114.0}, {3,4.0}, {5,mSi+2*mO}, {7,857}, {8,0.39}, {9,1.0}, {10,0}, {14,3}};
 
 EOS *Coesite = new EOS("Coesite (Stixrude)", Coesite_array, sizeof(Coesite_array)/2/sizeof(Coesite_array[0][0]));
 
@@ -734,7 +754,7 @@ EOS *Coesite = new EOS("Coesite (Stixrude)", Coesite_array, sizeof(Coesite_array
 // Stishovite (st), SiO2, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 220(12) GPa, G0' = 1.9(1)
 
-double Stishovite_array[][2] = {{0,2}, {1,14.02}, {2,314.0}, {3,3.8}, {5,mSi+2*mO}, {7,1108}, {8,1.37}, {9,2.8}, {10,0}, {14,3}};
+double Stishovite_array[][2] = {{0,0}, {1,14.02}, {2,314.0}, {3,3.8}, {5,mSi+2*mO}, {7,1108}, {8,1.37}, {9,2.8}, {10,0}, {14,3}};
 
 EOS *Stishovite = new EOS("Stishovite (Stixrude)", Stishovite_array, sizeof(Stishovite_array)/2/sizeof(Stishovite_array[0][0]));
 
@@ -742,7 +762,7 @@ EOS *Stishovite = new EOS("Stishovite (Stixrude)", Stishovite_array, sizeof(Stis
 // Seifertite (seif), SiO2, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 227(2) GPa, G0' = 1.8(1)
 
-double Seifertite_array[][2] = {{0,2}, {1,13.67}, {2,328.0}, {3,4.0}, {5,mSi+2*mO}, {7,1141}, {8,1.37}, {9,2.8}, {10,0}, {14,3}};
+double Seifertite_array[][2] = {{0,0}, {1,13.67}, {2,328.0}, {3,4.0}, {5,mSi+2*mO}, {7,1141}, {8,1.37}, {9,2.8}, {10,0}, {14,3}};
 
 EOS *Seifertite = new EOS("Seifertite (Stixrude)", Seifertite_array, sizeof(Seifertite_array)/2/sizeof(Seifertite_array[0][0]));
 
@@ -750,23 +770,44 @@ EOS *Seifertite = new EOS("Seifertite (Stixrude)", Seifertite_array, sizeof(Seif
 // Fe-Post-Perovskite (fppv), FeSiO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 129(5) GPa, G0' = 1.4(1)
 
-double Fe_Post_Perovskite_array[][2] = {{0,2}, {1,25.46}, {2,231.0}, {3,4.0}, {5,mFe+mSi+3*mO}, {7,782}, {8,1.89}, {9,1.1}, {10,0}, {14,5}};
+double Fe_Post_Perovskite_array[][2] = {{0,0}, {1,25.46}, {2,231.0}, {3,4.0}, {5,mFe+mSi+3*mO}, {7,782}, {8,1.89}, {9,1.1}, {10,0}, {14,5}};
 
 EOS *Fe_Post_Perovskite = new EOS("Fe-Post-Perovskite (Stixrude)", Fe_Post_Perovskite_array, sizeof(Fe_Post_Perovskite_array)/2/sizeof(Fe_Post_Perovskite_array[0][0]));
+
+// -----------------------------------
+// Al-Post-Perovskite (appv), FeSiO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
+
+double Al_Post_Perovskite_array[][2] = {{0,0}, {1,23.85}, {2,249}, {3,4.0}, {5,2*mAl+3*mO}, {7,762}, {8,1.65}, {9,1.1}, {10,0}, {14,5}};
+
+EOS *Al_Post_Perovskite = new EOS("Al-Post-Perovskite (Stixrude)", Al_Post_Perovskite_array, sizeof(Al_Post_Perovskite_array)/2/sizeof(Al_Post_Perovskite_array[0][0]));
 
 // -----------------------------------
 // Fe-Perovskite (fepv), FeSiO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 133(40) GPa, G0' = 1.4(0)
 
-double Fe_Perovskite_array[][2] = {{0,2}, {1,25.49}, {2,272.0}, {3,4.1}, {5,mFe+mSi+3*mO}, {7,871}, {8,1.57}, {9,1.1}, {10,0}, {14,5}};
+double Fe_Perovskite_array[][2] = {{0,0}, {1,25.49}, {2,272.0}, {3,4.1}, {5,mFe+mSi+3*mO}, {7,871}, {8,1.57}, {9,1.1}, {10,0}, {14,5}};
 
 EOS *Fe_Perovskite = new EOS("Fe-Perovskite (Stixrude)", Fe_Perovskite_array, sizeof(Fe_Perovskite_array)/2/sizeof(Fe_Perovskite_array[0][0]));
+
+// -----------------------------------
+// Ca-Perovskite (cpv), CaSiO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
+
+double Ca_Perovskite_array[][2] = {{0,0}, {1,27.45}, {2,236.0}, {3,3.9}, {5,mCa+mSi+3*mO}, {7,796}, {8,1.89}, {9,0.9}, {10,0}, {14,5}};
+
+EOS *Ca_Perovskite_raw = new EOS("Ca-Perovskite (Stixrude)", Ca_Perovskite_array, sizeof(Ca_Perovskite_array)/2/sizeof(Ca_Perovskite_array[0][0]));
+
+// -----------------------------------
+// Al-Perovskite (rh2o3), AlAlO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
+
+double Al_Perovskite_array[][2] = {{0,0}, {1,24.94}, {2,258}, {3,4.1}, {5,2*mAl+3*mO}, {7,886}, {8,1.57}, {9,1.1}, {10,0}, {14,5}};
+
+EOS *Al_Perovskite = new EOS("Al-Perovskite (Stixrude)", Al_Perovskite_array, sizeof(Al_Perovskite_array)/2/sizeof(Al_Perovskite_array[0][0]));
 
 // -----------------------------------
 // HP-Clinoferrosilite (hpcfs), Fe2Si2O6, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 71(10) GPa, G0' = 1.8(5)
 
-double HP_Clinoferrosilite_array[][2] = {{0,2}, {1,63.85}, {2,116.0}, {3,6.2}, {5,2*mFe+2*mSi+6*mO}, {7,692}, {8,1.12}, {9,0.2}, {10,0}, {14,10}};
+double HP_Clinoferrosilite_array[][2] = {{0,0}, {1,63.85}, {2,116.0}, {3,6.2}, {5,2*mFe+2*mSi+6*mO}, {7,692}, {8,1.12}, {9,0.2}, {10,0}, {14,10}};
 
 EOS *HP_Clinoferrosilite = new EOS("HP-Clinoferrosilite (Stixrude)", HP_Clinoferrosilite_array, sizeof(HP_Clinoferrosilite_array)/2/sizeof(HP_Clinoferrosilite_array[0][0]));
 
@@ -774,7 +815,7 @@ EOS *HP_Clinoferrosilite = new EOS("HP-Clinoferrosilite (Stixrude)", HP_Clinofer
 // Periclase (pe), MgO, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 131(1) GPa, G0' = 2.1(1)
 
-double Periclase_array[][2] = {{0,2}, {1,11.24}, {2,161.0}, {3,3.8}, {5,mMg+mO}, {7,767}, {8,1.36}, {9,1.7}, {10,0}, {14,2}};
+double Periclase_array[][2] = {{0,0}, {1,11.24}, {2,161.0}, {3,3.8}, {5,mMg+mO}, {7,767}, {8,1.36}, {9,1.7}, {10,0}, {14,2}};
 
 EOS *Periclase = new EOS("Periclase (Stixrude)", Periclase_array, sizeof(Periclase_array)/2/sizeof(Periclase_array[0][0]));
 
@@ -782,7 +823,7 @@ EOS *Periclase = new EOS("Periclase (Stixrude)", Periclase_array, sizeof(Pericla
 // Wüstite (wu), FeO, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 59(1) GPa, G0' = 1.4(1)
 
-double Wustite_array[][2] = {{0,2}, {1,12.26}, {2,179.0}, {3,4.9}, {5,mFe+mO}, {7,454}, {8,1.53}, {9,1.7}, {10,0}, {14,2}};
+double Wustite_array[][2] = {{0,0}, {1,12.26}, {2,179.0}, {3,4.9}, {5,mFe+mO}, {7,454}, {8,1.53}, {9,1.7}, {10,0}, {14,2}};
 
 EOS *Wustite = new EOS("Wüstite (Stixrude)", Wustite_array, sizeof(Wustite_array)/2/sizeof(Wustite_array[0][0]));
 
@@ -790,7 +831,7 @@ EOS *Wustite = new EOS("Wüstite (Stixrude)", Wustite_array, sizeof(Wustite_arra
 // Kyanite (ky), Al2SiO5, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 121(10) GPa, G0' = 1.7(5)
 
-double Kyanite_array[][2] = {{0,2}, {1,44.23}, {2,160.0}, {3,4.0}, {5,2*mAl+mSi+5*mO}, {7,943}, {8,0.93}, {9,1.0}, {10,0}, {14,8}};
+double Kyanite_array[][2] = {{0,0}, {1,44.23}, {2,160.0}, {3,4.0}, {5,2*mAl+mSi+5*mO}, {7,943}, {8,0.93}, {9,1.0}, {10,0}, {14,8}};
 
 EOS *Kyanite = new EOS("Kyanite (Stixrude)", Kyanite_array, sizeof(Kyanite_array)/2/sizeof(Kyanite_array[0][0]));
 
@@ -798,7 +839,7 @@ EOS *Kyanite = new EOS("Kyanite (Stixrude)", Kyanite_array, sizeof(Kyanite_array
 // Nepheline (neph), NaAlSiO4, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
 // G0 = 31(1) GPa, G0' = 1.3(5)
 
-double Nepheline_array[][2] = {{0,2}, {1,54.67}, {2,53.0}, {3,4.0}, {5,mNa+mAl+mSi+4*mO}, {7,701}, {8,0.69}, {9,1.0}, {10,0}, {14,7}};
+double Nepheline_array[][2] = {{0,0}, {1,54.67}, {2,53.0}, {3,4.0}, {5,mNa+mAl+mSi+4*mO}, {7,701}, {8,0.69}, {9,1.0}, {10,0}, {14,7}};
 
 EOS *Nepheline = new EOS("Nepheline (Stixrude)", Nepheline_array, sizeof(Nepheline_array)/2/sizeof(Nepheline_array[0][0]));
 
@@ -823,6 +864,191 @@ double Plat_array[][2] = {{0,2}, {1,9.0902}, {2,273}, {3,5.20}, {5,195.084}, {7,
 
 EOS *Plat = new EOS("Plat", Plat_array, sizeof(Plat_array)/2/sizeof(Plat_array[0][0]));
 
+
+// ==========  Mixtures  ================
+EOS *FoFayMix = new EOS("Fo+Fay",
+                           Mixing::density_FoFay,  // external density
+                           NULL);                    // no external entropy
+
+EOS *OlMix = new EOS("Ol Mix",Mixing::density_OlMix, NULL);   
+
+EOS *WdsMix = new EOS("Wds Mix",Mixing::density_WdsMix, NULL);                    
+
+EOS *RwdMix = new EOS("Rwd Mix",Mixing::density_RwdMix, NULL);     
+
+EOS *BrgMix = new EOS("Brg Mix",Mixing::density_BrgMix, NULL);    
+
+EOS *PPvMix = new EOS("PPv Mix",Mixing::density_PPvMix, NULL); 
+
+EOS *RockWatMix = new EOS("Rock-Wat Mix",Mixing::density_RockWatMix, NULL); 
+
+EOS *AtmMix = new EOS("Atm Mix",Mixing::density_AtmMix, NULL); 
+
+struct InitMantleMixes {
+  InitMantleMixes() {
+    FoFayMix->modify_dTdP(Mixing::dTdP_FoFay);
+    OlMix->modify_dTdP(Mixing::dTdP_OlMix);
+    WdsMix->modify_dTdP(Mixing::dTdP_WdsMix);
+    RwdMix->modify_dTdP(Mixing::dTdP_RwdMix);
+    BrgMix->modify_dTdP(Mixing::dTdP_BrgMix);
+    PPvMix->modify_dTdP(Mixing::dTdP_PPvMix);
+    RockWatMix->modify_dTdP(Mixing::dTdP_RockWatMix);
+    AtmMix->modify_dTdP(Mixing::dTdP_AtmMix);
+  }
+} _initMantleMixes;
+
+static const double MgO_MUSELLA_PMAX_GPA = 500.0;   // ceiling: above this we clamp
+static const double MgO_MUSELLA_RHO_FALLBACK = 12.0; // g/cm^3: "don’t crash" value
+static bool MgO_Musella_warned = false;
+
+static double density_MgO_Musella_safe(double P_cgs, double T, double rho_guess)
+{
+  double P_GPa = P_cgs / 1.0e10;
+
+  // Clamp pressure to avoid asking EOS to solve in crazy regimes
+  if (P_GPa > MgO_MUSELLA_PMAX_GPA)
+  {
+    if (verbose && !MgO_Musella_warned)
+    {
+      cout << "Warning: MgO (Musella) requested at P=" << P_GPa
+           << " GPa. Clamping to " << MgO_MUSELLA_PMAX_GPA
+           << " GPa for numerical stability (results above clamp not physical)." << endl;
+      MgO_Musella_warned = true;
+    }
+    P_cgs = MgO_MUSELLA_PMAX_GPA * 1.0e10;
+  }
+
+  // Try the real EOS
+  double rho = MgO_raw->density(P_cgs, T, rho_guess);
+
+  // If it still fails, return something finite so hydro doesn’t abort
+  if (!gsl_finite(rho) || rho <= 0.0)
+  {
+    if (verbose && !MgO_Musella_warned)
+    {
+      cout << "Warning: MgO (Musella) density solver failed even after clamp; "
+              "returning fallback density." << endl;
+      MgO_Musella_warned = true;
+    }
+
+    if (gsl_finite(rho_guess) && rho_guess > 0.0)
+      return rho_guess;                 // best “continuation” guess
+    else
+      return MgO_MUSELLA_RHO_FALLBACK;  // last resort
+  }
+
+  return rho;
+}
+
+
+EOS *MgO = []() {
+  EOS *e = new EOS("MgO (Musella, safe)", MgO_array,
+                   sizeof(MgO_array)/2/sizeof(MgO_array[0][0]));
+  e->modify_extern_density(density_MgO_Musella_safe);
+  return e;
+}();
+
+static const double FeO_B1_PMAX_GPA = 500.0;   // ceiling: above this we clamp
+static const double FeO_B1_RHO_FALLBACK = 12.0; // g/cm^3: "don’t crash" value
+static bool FeO_B1_warned = false;
+
+static double density_FeO_B1_safe(double P_cgs, double T, double rho_guess)
+{
+  double P_GPa = P_cgs / 1.0e10;
+
+  // Clamp pressure to avoid asking EOS to solve in crazy regimes
+  if (P_GPa > FeO_B1_PMAX_GPA)
+  {
+    if (verbose && !FeO_B1_warned)
+    {
+      cout << "Warning: FeO B1 requested at P=" << P_GPa
+           << " GPa. Clamping to " << FeO_B1_PMAX_GPA
+           << " GPa for numerical stability (results above clamp not physical)." << endl;
+      FeO_B1_warned = true;
+    }
+    P_cgs = FeO_B1_PMAX_GPA * 1.0e10;
+  }
+
+  // Try the real EOS
+  double rho = B1FeO_raw->density(P_cgs, T, rho_guess);
+
+  // If it still fails, return something finite so hydro doesn’t abort
+  if (!gsl_finite(rho) || rho <= 0.0)
+  {
+    if (verbose && !FeO_B1_warned)
+    {
+      cout << "Warning: FeO B1 density solver failed even after clamp; "
+              "returning fallback density." << endl;
+      FeO_B1_warned = true;
+    }
+
+    if (gsl_finite(rho_guess) && rho_guess > 0.0)
+      return rho_guess;                 // best “continuation” guess
+    else
+      return FeO_B1_RHO_FALLBACK;  // last resort
+  }
+
+  return rho;
+}
+
+
+EOS *B1FeO = []() {
+  EOS *e = new EOS("FeO (Fischer)", B1FeO_array,
+                   sizeof(B1FeO_array)/2/sizeof(B1FeO_array[0][0]));
+  e->modify_extern_density(density_FeO_B1_safe);
+  return e;
+}();
+
+static const double Ca_Perovskite_PMAX_GPA = 500.0;   // ceiling: above this we clamp
+static const double Ca_Perovskite_RHO_FALLBACK = 12.0; // g/cm^3: "don’t crash" value
+static bool Ca_Perovskite_warned = false;
+
+static double density_Ca_Perovskite_safe(double P_cgs, double T, double rho_guess)
+{
+  double P_GPa = P_cgs / 1.0e10;
+
+  // Clamp pressure to avoid asking EOS to solve in crazy regimes
+  if (P_GPa > Ca_Perovskite_PMAX_GPA)
+  {
+    if (verbose && !Ca_Perovskite_warned)
+    {
+      cout << "Warning: Ca_Perovskite requested at P=" << P_GPa
+           << " GPa. Clamping to " << Ca_Perovskite_PMAX_GPA
+           << " GPa for numerical stability (results above clamp not physical)." << endl;
+      Ca_Perovskite_warned = true;
+    }
+    P_cgs = Ca_Perovskite_PMAX_GPA * 1.0e10;
+  }
+
+  // Try the real EOS
+  double rho = Ca_Perovskite_raw->density(P_cgs, T, rho_guess);
+
+  // If it still fails, return something finite so hydro doesn’t abort
+  if (!gsl_finite(rho) || rho <= 0.0)
+  {
+    if (verbose && !Ca_Perovskite_warned)
+    {
+      cout << "Warning: FeO B1 density solver failed even after clamp; "
+              "returning fallback density." << endl;
+      Ca_Perovskite_warned = true;
+    }
+
+    if (gsl_finite(rho_guess) && rho_guess > 0.0)
+      return rho_guess;                 // best “continuation” guess
+    else
+      return Ca_Perovskite_RHO_FALLBACK;  // last resort
+  }
+
+  return rho;
+}
+
+
+EOS *Ca_Perovskite = []() {
+  EOS *e = new EOS("Ca Perovskite (Stixrude)", Ca_Perovskite_array,
+                   sizeof(Ca_Perovskite_array)/2/sizeof(Ca_Perovskite_array[0][0]));
+  e->modify_extern_density(density_Ca_Perovskite_safe);
+  return e;
+}();
 
 // ============== An example on the format of dTdP function ==============
 double dTdP_gas(double P, double T)
@@ -1383,6 +1609,3 @@ void FINVER(double F, int N, double &X, double &XDF, double &XDFF)
     XDF  = t1 * RT;
     XDFF = t2 * RT + pow(t1,2) * (R2 - 2.0*RT) / t;
 }
-
-
-

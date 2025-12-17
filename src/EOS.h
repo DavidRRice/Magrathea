@@ -51,6 +51,7 @@ struct EOS
   int geteqntype(){return eqntype;}		// get the type of EOS fitting eqn
   double getV0(){return V0;}
   double getmmol(){return mmol;}
+  EOS*  setmmol(double m){ mmol = m; return this; }
   double getP0(){return P0;}
   double getT0(){return T0;}
   double (*dTdP)(double P, double T, double &rho_guess); // return the temperature gradient at given pressure and temperature point. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient.

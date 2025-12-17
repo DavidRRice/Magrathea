@@ -5,6 +5,7 @@
 #include "hydro.h"
 #include "compfind.h"
 #include "parser.h"
+#include "mixing.h"
 
 struct timeval start_time, end_time;
 
@@ -61,6 +62,16 @@ int main(int argc, char* argv[])
   int numlayers=2;
   int numchains=1;
   int chainsteps=10;
+  double CaMg = 0.07;
+  double SiMg = 0.9;
+  double AlMg = 0.09;
+  double FeMg = -1.0;
+  double Mp_total=0.0;
+  double mantle_wFeO=-1.0;
+  double wt_fract_S_core=0.0;
+  double wt_fract_Ni_core=0.0;
+  double RCMF_in=-1.0;
+  double mantle_Mg_number = -1.0;
 
   Water_sc_Mazevet -> modify_dTdP(dTdP_S_H2OSC);
 
@@ -91,7 +102,7 @@ int main(int argc, char* argv[])
     // 6: iterate over EOS modifications with two-layer solver, 5: iterate over EOS with regular solver
     input_mode = options.GetOptionDouble("input_mode");
     //Get Phase Diagrams for modes which require
-    if (input_mode==0 or input_mode==3 or input_mode==4 or input_mode==7 or input_mode==8)
+    if (input_mode==0 or input_mode==3 or input_mode==4 or input_mode==7 or input_mode==8 or input_mode==9)
     {
       core_phasedgm=options.GetOptionString("core_phasedgm");
       mantle_phasedgm=options.GetOptionString("mantle_phasedgm");
@@ -182,6 +193,24 @@ int main(int argc, char* argv[])
       Tgap[2]=options.GetOptionDouble("temp_jump_1");
       Tgap[3]=options.GetOptionDouble("surface_temp");
       break;
+    case 9:
+      Mp_total=options.GetOptionDouble("total_mass");
+      Mcomp[2]=options.GetOptionDouble("mass_of_hydro");
+      Mcomp[3]=options.GetOptionDouble("mass_of_atm");
+      CaMg = options.GetOptionDouble("CaMg");
+      SiMg = options.GetOptionDouble("SiMg");
+      AlMg = options.GetOptionDouble("AlMg");
+      FeMg        = options.GetOptionDouble("FeMg",        -1.0);
+      mantle_wFeO = options.GetOptionDouble("mantle_wFeO", -1.0);
+      mantle_Mg_number= options.GetOptionDouble("mantle_Mg_num",-1.0);
+      RCMF_in     = options.GetOptionDouble("RCMF",        -1.0);
+      wt_fract_S_core = options.GetOptionDouble("wt_fract_S_core");
+      wt_fract_Ni_core = options.GetOptionDouble("wt_fract_Ni_core");
+      Tgap[0]=options.GetOptionDouble("temp_jump_3"); 
+      Tgap[1]=options.GetOptionDouble("temp_jump_2");
+      Tgap[2]=options.GetOptionDouble("temp_jump_1");
+      Tgap[3]=options.GetOptionDouble("surface_temp");
+      outputfile=options.GetOptionString("output_file");
     }
   } catch (SettingsParserException& e) { // This will be triggered if an exception is thrown above.
     std::cout << "\nException: " << e.what() << "\n"; // e.what() prints the exception message.
@@ -200,12 +229,14 @@ int main(int argc, char* argv[])
     Comp[1]=mant;
   else if (mantle_phasedgm=="Si_simple")
     Comp[1]=mant1;
-  else if (mantle_phasedgm=="PREM")
+  else if (mantle_phasedgm=="mant_mix")
     Comp[1]=mant2;
-  else if (mantle_phasedgm=="C_simple")
+  else if (mantle_phasedgm=="PREM")
     Comp[1]=mant3;
-  else if (mantle_phasedgm=="SiC")
+  else if (mantle_phasedgm=="C_simple")
     Comp[1]=mant4;
+  else if (mantle_phasedgm=="SiC")
+    Comp[1]=mant5;
   else
     cout<<"mant_phasedgm does not exist, using default"<<endl;
   if (hydro_phasedgm=="water_default")
@@ -370,6 +401,87 @@ int main(int argc, char* argv[])
     cout<<"run time "<<deltat<<'s'<<endl;
   }
 
+  else if (input_mode == 9)
+  {
+    double deltat;
+    gettimeofday(&start_time,NULL);
+    
+    double Mrock = Mp_total - Mcomp[2] - Mcomp[3];
+
+    double FeMg_mantle, RCMF=RCMF_in;
+    double mantle_wFeO_local = mantle_wFeO;
+
+    if (mantle_Mg_number >= 0.0) {
+    std::string mg_note;
+    if (mantle_wFeO >= 0.0) {
+      cout << "Mode9 note: both mantle_Mg_number and mantle_wFeO were set; using mantle_Mg_number." << endl;
+    }
+    if (!Mixing::mantle_wFeO_from_MgNumber(CaMg, SiMg, AlMg,
+                                         mantle_Mg_number,
+                                         mantle_wFeO_local,
+                                         mg_note)) {
+      cout << "ERROR: invalid mantle_Mg_number.\n";
+      cout << "Details: " << mg_note << endl;
+    return EXIT_FAILURE;
+    }
+    if (!mg_note.empty()) cout << "Mode9 note: " << mg_note << endl;
+    }
+
+    string cmf_note;
+    if (!Mixing::compute_mode9_core_mantle(CaMg, SiMg, AlMg,
+                                         FeMg, mantle_wFeO_local, RCMF, wt_fract_S_core, wt_fract_Ni_core,
+                                         FeMg_mantle, cmf_note)) {
+    cout << "ERROR: " << cmf_note << endl;
+    return 1;      
+    }
+    if (!cmf_note.empty()) cout << "CMF note: " << cmf_note << endl;
+
+    
+    // Effective molar mass matching a *mass fraction* of S in the core
+    const double denom = (1.0 - wt_fract_S_core)/mFe + (wt_fract_S_core)/mS;
+    const double mu_eff_core = 1.0 / denom;
+
+    // Apply to the Fe core EOS phases you actually use
+    Fe_hcp->modifyEOS(5, mu_eff_core);
+    Fe_liquid->modifyEOS(5, mu_eff_core);
+
+
+    string mantle_warning;
+
+    if (!Mixing::set_mantle_mixtures_from_ratios(CaMg, SiMg, AlMg, FeMg_mantle, mantle_warning)) {
+      cout << "ERROR: could not construct mantle composition from element ratios.\n";
+      cout << "Details: " << mantle_warning << endl;
+      // fall back to old pyrolite, or abort
+    }
+
+    if (!mantle_warning.empty()) {
+      cout << "Mantle composition note: " << mantle_warning << endl;
+    }
+    
+    Mcomp[0]=RCMF*Mrock;
+    Mcomp[1]=(1-RCMF)*Mrock;
+    
+    planet=fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
+
+
+    cout<<"# of shots "<<count_shoot<<", # of total steps "<<count_step<<endl;
+    gettimeofday(&end_time, NULL);
+    deltat = ((end_time.tv_sec  - start_time.tv_sec) * 1000000u + end_time.tv_usec - start_time.tv_usec) / 1.e6;
+    cout<<"run time "<<deltat<<'s'<<endl;
+    if (!planet)
+    {
+      for (unsigned int i=0; i < Mcomp.size(); i++)
+        cout<<Mcomp[i]<<", ";
+      cout<<"\t No solution found."<<endl;
+    }
+    else
+    {
+      planet->print(outputfile, false); // Save the result in an asc file with this name.
+      cout<<"Planet saved: "<<outputfile<<endl;
+    }
+    delete planet;
+  }
+
   // ============================
   
   delete Fe_liquid;
@@ -393,6 +505,11 @@ int main(int argc, char* argv[])
   delete Si_liquid;
   delete Si_Liquid_Wolf;
   delete Si_Dummy;
+  delete MgO;
+  delete MgO_raw;
+  delete B1FeO;
+  delete B1FeO_raw;
+  delete B8FeO;
   delete Fo;
   delete Wds;
   delete Rwd;
@@ -476,13 +593,24 @@ int main(int argc, char* argv[])
   delete Seifertite;
   delete Fe_Post_Perovskite;
   delete Fe_Perovskite;
+  delete Ca_Perovskite;
+  delete Ca_Perovskite_raw;
+  delete Al_Perovskite;
+  delete Al_Post_Perovskite;
   delete HP_Clinoferrosilite;
   delete Periclase;
   delete Wustite;
   delete Kyanite;
   delete Nepheline;
   delete Graph_Lowitzer;
-
+  delete FoFayMix; 
+  delete OlMix; 
+  delete WdsMix; 
+  delete RwdMix;
+  delete BrgMix;
+  delete PPvMix;
+  delete RockWatMix;
+  delete AtmMix;
   return 0;
 }
 
