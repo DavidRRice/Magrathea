@@ -1,6 +1,6 @@
 # MAGRATHEA #
 
-[<img src="plot/Magrathea_Logo.png" width="500"/>](plot/Magrathea_Logo.png)
+[<img src="plot/Magrathea_Logo.png" width="400"/>](plot/Magrathea_Logo.png)
 
 **Excerpt from The Hitchhiker's Guide to the Galaxy, Page 634784, Section 5a, Entry: MAGRATHEA**
 
