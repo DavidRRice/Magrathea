@@ -157,8 +157,9 @@ int derivs_m3(double x, const double y[], double dydx[], void * params)
   return GSL_SUCCESS;
 }
 
-hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vector<double> Tgap, double ode_tol, double P0, bool isothermal):ode_status(2)
+hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vector<double> Tgap, double ode_tol, double P0, double Rest, bool isothermal):ode_status(2)
 // Given the test planet radius, a vector of components, their masses, and the temperature discontinuity between each gaps (Temperature at the interior boundary minus exterior boundary.  The last temperature in the list is the planet equilibrium temperature). Bool isothermal determines whether use isothermal temperature profile or self-consistent calculation. The function integrates hydrostatic equation outside in.  The integration end when either the target mass reached or radius approaches 0.
+// Rest is the best estimated planet radius used to estimate the maximum central pressure. 
 // Integration inside out need to fine tune the center pressure.  The center pressure is way larger than the surface pressure.  The required accuracy for the center pressure and the integration process is higher than double.
 // Integration outside-in will cause the same problem for the center mass.  It's hard to shoot the exact mass at the center.
 // Integration outside in is more straight forward for temperature because only the temperature at outer boundary is set.
@@ -181,6 +182,11 @@ hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vec
   double Mtot = accumulate(M_Comp.begin(), M_Comp.end(), 0.0) * ME;
   fitM=0;
 
+  double Pmax = G*sq(Mtot)/pow(Rest,4);
+  // Central pressure estimate: 3/(4π) · G M² / R⁴.
+  // Integration is truncated ~4× above this value to avoid
+  // evaluating the EOS at unphysically high pressures.
+  
   int status=0;
   R_Comp.assign(n_Comp-1, -1);			// reset the radius
 
@@ -287,7 +293,7 @@ hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vec
     
     mmax = accumulate(M_Comp.begin()+i, M_Comp.end(), 0.0) * ME;
 
-    while (m < mmax && y[1] < 1E15)		// integrate to center.  If the mass is larger than 0 at the center, the gravity will diverge at the center.  Therefore cut the integration at 1E5 GPa.
+    while (m < mmax && y[1] < Pmax)		// integrate to center.  If the mass is larger than 0 at the center, the gravity will diverge at the center.  Therefore cut the integration at 1E5 GPa.
     {
       status = gsl_odeiv2_evolve_apply (e, c, s, &sys, &m, mmax, &h, y);
       if (status != GSL_SUCCESS)
@@ -450,7 +456,7 @@ hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vec
       y[2] += Tgap[i-1];
     } 
 
-    if ( y[1] >= 1E15 || status == GSL_FAILURE || (i==1 && M_Comp[0]*ME<1))		// Reaches the pressure limit, or code diverges almost at the center.  Exit iteration no matter which component current at.
+    if ( y[1] >= Pmax || status == GSL_FAILURE || (i==1 && M_Comp[0]*ME<1))		// Reaches the pressure limit, or code diverges almost at the center.  Exit iteration no matter which component current at.
     {
       for(int j = i-2; j >= 0; j-- )
         R_Comp[j] = R_Comp[j+1];
@@ -1488,6 +1494,7 @@ double R_hydro(double Rp, void *params)
   vector<double> M = p -> M;
   vector<double> Tgap = p -> Tgap;
   bool isothermal = p -> iso;
+  double Rest = p -> Rest;
   
 
   double Mtot = accumulate(M.begin(), M.end(), 0.0) * ME;
@@ -1495,7 +1502,7 @@ double R_hydro(double Rp, void *params)
   if (Rp < 0)
     return Rp - Mtot;
 
-  hydro temp(Rp, p -> Comp, M, Tgap, ode_eps_rel0, P0, isothermal);
+  hydro temp(Rp, p -> Comp, M, Tgap, ode_eps_rel0, P0, Rest, isothermal);
 
   if (temp.getsize() == 0)	// can't find a solution
   {
@@ -1565,7 +1572,7 @@ hydro* Rloop(vector<PhaseDgm> &Comp, vector<double> M_Comp, vector<double> ave_r
 
   double R_lo = 0.8 * Rp, R_hi = 1.2 * Rp, R_rsd = Rp;
   double success = -1;		// success > 0 means find a function value.  success < 0 means planet structure integration was failed.
-  struct loop_params params = {{R_rsd, success, P0}, Comp, M_Comp, Tgap, isothermal, NULL};
+  struct loop_params params = {{R_rsd, success, P0}, Comp, M_Comp, Tgap, isothermal, Rp, NULL};
 
   const gsl_root_fsolver_type *EQN = gsl_root_fsolver_brent;
   gsl_root_fsolver *s = gsl_root_fsolver_alloc (EQN);
@@ -1688,7 +1695,7 @@ hydro* Rloop(vector<PhaseDgm> &Comp, vector<double> M_Comp, vector<double> ave_r
   gsl_root_fsolver_free (s);
 
   Rp = R_hi;
-  hydro *temp=new hydro(R_hi, Comp, M_Comp, Tgap, ode_eps_rel0, P0, isothermal); // Need the branch of solution that does not diverge at the center to get the central pressure and temperature
+  hydro *temp=new hydro(R_hi, Comp, M_Comp, Tgap, ode_eps_rel0, P0, Rp, isothermal); // Need the branch of solution that does not diverge at the center to get the central pressure and temperature
 
   Pc = temp -> getP(0) * sqrt(1 + temp -> getR(0) / Rp); // Make a correction to the pressure
   Tc = temp -> getT(0);
@@ -1786,7 +1793,7 @@ hydro* fitting_method(vector<PhaseDgm> &Comp, vector<double> M_Comp, vector<doub
   double ode_tol = ode_eps_rel1;
   fit_iter = 0;
   const size_t n = 3;
-  struct loop_params params = {{Mfit, ode_tol, P0}, Comp, M_Comp, Tgap, isothermal, NULL};
+  struct loop_params params = {{Mfit, ode_tol, P0}, Comp, M_Comp, Tgap, isothermal, Rp, NULL};
   gsl_multiroot_function f = {&fitting_error, n, &params};
   gsl_vector *x;
   EQNS = gsl_multiroot_fsolver_hybrids;

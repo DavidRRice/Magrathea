@@ -18,7 +18,7 @@ extern int count_step;
 
 struct hydro			// pressure, density of each species, and maybe temperature against radius
 {
-  hydro(double Rp, vector<PhaseDgm>& Comp, vector<double> Mass_Comp, vector<double> Tgap, double ode_tol, double P0, bool isothermal); // Given the test planet radius, a vector of components, their masses, and the temperature discontinuity between each gaps (the last temperature in the list is the planet equilibrium temperature). Bool isothermal determines whether use isothermal temperature profile or self-consistent calculation. The function integrates hydrostatic equation outside in.
+  hydro(double Rp, vector<PhaseDgm>& Comp, vector<double> Mass_Comp, vector<double> Tgap, double ode_tol, double P0, double Rest, bool isothermal); // Given the test planet radius, a vector of components, their masses, and the temperature discontinuity between each gaps (the last temperature in the list is the planet equilibrium temperature). Bool isothermal determines whether use isothermal temperature profile or self-consistent calculation. The function integrates hydrostatic equation outside in.
   hydro(double Pc, double MCin, double MMin, double MWin, double P0, double Teq=300);
 // Given the center pressure, Core (iron) mass, mantle (Si) mass, water mass, integrate hydrostatic equation inside out against mass.  The integration end when either the target mass reached or pressure smaller than P0.
   hydro(double Rp, double Pc, double Tc, vector<PhaseDgm>& Comp, vector<double> Mass_Comp, vector<double> Tgap, bool isothermal, double Mfit, double ode_tol, double P0, double &Ri, double &Pi, double &Ti, double &Ro, double &Po, double &To);
@@ -78,6 +78,7 @@ struct loop_params
   vector<double> M;
   vector<double> Tgap;
   bool iso;
+  double Rest;
   hydro* model;
 };
 
