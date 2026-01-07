@@ -50,7 +50,7 @@ namespace Mixing {
 
     // sanitize guess (avoid absurd values propagating into component solvers)
     double guess = rho_guess;
-
+    
     double M_mix = 0.0;   // g/mol
     double V_mix = 0.0;   // cm^3/mol
 
@@ -62,6 +62,7 @@ namespace Mixing {
         return numeric_limits<double>::quiet_NaN();
 
       const double rho_i = phase->density(P_cgs, T, guess); // g/cm^3
+      
       if (!gsl_finite(rho_i) || rho_i <= 0.0)
         return numeric_limits<double>::quiet_NaN();
 
@@ -169,14 +170,14 @@ namespace Mixing {
                                                                               \
   double dTdP_S_##NAME(double P_GPa, double T, double &rho_guess)         \
   {                                                                           \
-    return dTdP_S_ideal_mixture(P_GPa, T, comps_##NAME, x_##NAME);           \
+    return dTdP_S_ideal_mixture(P_GPa, T, comps_##NAME, x_##NAME, rho_guess);           \
   }                                                                           \
                                                                               \
   double dTdP_##NAME(double P_cgs, double T, double &rho_guess)               \
   {                                                                           \
     const double P_GPa   = P_cgs / 1.0e10;                                    \
     const double grad_GPa = dTdP_S_ideal_mixture(P_GPa, T,                    \
-                                                 comps_##NAME, x_##NAME);     \
+                                                 comps_##NAME, x_##NAME, rho_guess);     \
     if (!gsl_finite(grad_GPa))                                                \
       return numeric_limits<double>::quiet_NaN();                        \
     return grad_GPa / 1.0e10;                                                 \
