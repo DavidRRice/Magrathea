@@ -25,6 +25,14 @@ namespace Mixing {
                               const vector<EOS*> &components,
                               const vector<double> &x_mol, double rho_guess = 1.0);
 
+  // Ideal mixture adiabatic gradient dT/dP|S (full rigorous version):
+  // - More rigorous formulation accounting for volume expansion
+  // - P_GPa in GPa (same as EOS::dTdP_S)
+  // - returns K/GPa
+  double dTdP_S_ideal_mixture_full(double P_GPa, double T,
+                                    const vector<EOS*> &components,
+                                    const vector<double> &x_mol, double rho_guess = 1.0);
+
   // ---------- Wrappers for Mixtures ----------
   // one macro to declare the triple definitions for any NAME
   // Density(P,T,rho_guess) in cgs units for Fo+Fay 50/50
