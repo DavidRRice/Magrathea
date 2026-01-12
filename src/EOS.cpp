@@ -1704,6 +1704,113 @@ double EOS::pPpT_rho(double rho, double T)
   return result;
 }
 
+double EOS::dVdT_P(double P_GPa, double T)
+// partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K
+{
+  if(eqntype == 7 && thermal_type == 0) // 2-column table: P, rho (no temperature dependence)
+  {
+    // For 2-column table, pressure only depends on density, not temperature
+    // Therefore dV/dT = 0 at constant pressure
+    return 0.0;
+  }
+  if(eqntype == 7 && thermal_type == 10) // 4-column table: P, T, rho, dT/dP_S
+  {
+    // For 4-column table, calculate dV/dT directly from the table
+    // V = mmol/rho, so dV/dT = -mmol/rho^2 * drho/dT
+    // At constant P, find drho/dT using grid points
+    
+    if(!gsl_finite(mmol) || mmol <= 0.0)
+      return numeric_limits<double>::quiet_NaN();
+    
+    // P_GPa is already in GPa (same as table units)
+    double P_table = P_GPa;
+    
+    // Clamp P to table bounds if needed
+    if(P_table < Ptable[0])
+      P_table = Ptable[0];
+    else if(P_table > Ptable[nline/tlen - 1])
+      P_table = Ptable[nline/tlen - 1];
+    
+    // Find P grid index
+    size_t P_idx = gsl_interp_accel_find(accP, Ptable, nline/tlen, P_table);
+    if(P_idx >= (size_t)(nline/tlen - 1))
+      P_idx = nline/tlen - 2;
+    
+    // Find T grid index
+    double T_clamped = T;
+    if(T < temptable[0])
+      T_clamped = temptable[0];
+    else if(T > temptable[tlen-1])
+      T_clamped = temptable[tlen-1];
+    
+    size_t T_idx = gsl_interp_accel_find(accT, temptable, tlen, T_clamped);
+    if(T_idx >= (size_t)(tlen-1))
+      T_idx = tlen - 2;
+    
+    // Get 4 grid points: (T_idx, P_idx), (T_idx, P_idx+1), (T_idx+1, P_idx), (T_idx+1, P_idx+1)
+    int idx00 = T_idx + P_idx * tlen;
+    int idx01 = T_idx + (P_idx+1) * tlen;
+    int idx10 = (T_idx+1) + P_idx * tlen;
+    int idx11 = (T_idx+1) + (P_idx+1) * tlen;
+    
+    // Interpolate rho at constant P for two T grid points
+    // At T_idx:
+    double rho_T0_P0 = rhotable[idx00];
+    double rho_T0_P1 = rhotable[idx01];
+    double rho_T0;
+    if(fabs(Ptable[P_idx+1] - Ptable[P_idx]) < 1e-10)
+      rho_T0 = rho_T0_P0;
+    else
+      rho_T0 = rho_T0_P0 + (rho_T0_P1 - rho_T0_P0) * (P_table - Ptable[P_idx]) / (Ptable[P_idx+1] - Ptable[P_idx]);
+    
+    // At T_idx+1:
+    double rho_T1_P0 = rhotable[idx10];
+    double rho_T1_P1 = rhotable[idx11];
+    double rho_T1;
+    if(fabs(Ptable[P_idx+1] - Ptable[P_idx]) < 1e-10)
+      rho_T1 = rho_T1_P0;
+    else
+      rho_T1 = rho_T1_P0 + (rho_T1_P1 - rho_T1_P0) * (P_table - Ptable[P_idx]) / (Ptable[P_idx+1] - Ptable[P_idx]);
+    
+    // Compute drho/dT at constant P
+    double dT = temptable[T_idx+1] - temptable[T_idx];
+    if(fabs(dT) < 1e-10)
+      return numeric_limits<double>::quiet_NaN();
+    
+    double drho_dT = (rho_T1 - rho_T0) / dT;
+    
+    // Get rho at (P_GPa, T) for computing dV/dT
+    double rho = density(P_GPa * 1E10, T, rho_T0); // density expects P in cgs
+    
+    if(!gsl_finite(rho) || rho <= 0.0)
+      return numeric_limits<double>::quiet_NaN();
+    
+    // dV/dT = -mmol/rho^2 * drho/dT
+    return -mmol / (rho * rho) * drho_dT;
+  }
+  else
+  {
+    // For other EOS types, use the formula: dV/dT = (m/rho^2) * (pPpT_rho / pPprho_T)
+    if(!gsl_finite(mmol) || mmol <= 0.0)
+      return numeric_limits<double>::quiet_NaN();
+    
+    // Get density at (P_GPa, T)
+    double rho = density(P_GPa * 1E10, T, 1.0); // density expects P in cgs
+    if(!gsl_finite(rho) || rho <= 0.0)
+      return numeric_limits<double>::quiet_NaN();
+    
+    // Get partial derivatives
+    double pPpT_rho_val = pPpT_rho(rho, T);  // GPa/K
+    double pPprho_T_val = pPprho_T(rho, T);  // GPa/(g/cm^3)
+    
+    if(!gsl_finite(pPpT_rho_val) || !gsl_finite(pPprho_T_val) || pPprho_T_val == 0.0)
+      return numeric_limits<double>::quiet_NaN();
+    
+    // Calculate dV/dT = (mmol/rho^2) * (pPpT_rho / pPprho_T)
+    // Units: (g/mol) / (g/cm^3)^2 * (GPa/K) / (GPa/(g/cm^3)) = cm^3/(mol*K)
+    return (mmol / (rho * rho)) * (pPpT_rho_val / pPprho_T_val);
+  }
+}
 
 double EOS::dTdm(double m, double r, double rho, double P, double T)
 // adiabatic temperature gradient in K/g, P in cgs
@@ -1743,6 +1850,15 @@ double EOS::dTdm(double m, double r, double rho, double P, double T)
     return dPdm * dTdP(P, T, rho);
   }
   
+  if(eqntype == 7) // tabular EOS: Press function not implemented for eqntype==7
+  {
+    // For tabular EOS, dTdm should not be called (thermal_type==0 uses isothermal, thermal_type==10 uses dTdP_S)
+    // But as a safeguard, return NaN if called
+    if (verbose)
+      cout<<"Warning: dTdm called for eqntype==7 (tabular EOS) in phase "<<phasetype<<". This should not happen (thermal_type==0 uses isothermal, thermal_type==10 uses dTdP_S). Returning NaN."<<endl;
+    return numeric_limits<double>::quiet_NaN();
+  }
+  
   double V = volume(rho);
   double dTdV = dTdV_S(V, P/1E10, T);
   if (r<1)		// At the center of the planet where dTdm has a 0/0 limit
@@ -1777,7 +1893,12 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
   }
   if(eqntype==7) //tabular P-T table
   {
-    P /= 1E10;
+    if(thermal_type == 0) // 2-column table: P, rho (no temperature gradient data)
+    {
+      // For 2-column table, there is no temperature gradient data
+      // This should not be called for thermal_type==0, but return NaN as a safeguard
+      return numeric_limits<double>::quiet_NaN();
+    }
     double adiabat;
     int status;
     status = gsl_spline2d_eval_e(spline2dadi, T, P, accT, accP, &adiabat);
@@ -1791,26 +1912,26 @@ double EOS::dTdP_S(double P, double T, double &rho_guess)
       else if(P<Ptable[0])
       {
         gsl_spline2d_eval_e(spline2dadi, T, Ptable[0], accT, accP, &adiabat);
-        return adiabat/1E10;
+        return adiabat;
       }
       else if(P>Ptable[nline/tlen-1])
       {
         gsl_spline2d_eval_e(spline2dadi, T, Ptable[nline/tlen-1], accT, accP, &adiabat);
-        return adiabat/1E10;
+        return adiabat;
       }
       else if(T < temptable[0])
       {
         gsl_spline2d_eval_e(spline2dadi, temptable[0], P, accT, accP, &adiabat);
-        return adiabat/1E10;
+        return adiabat;
       }
       else
       {
         gsl_spline2d_eval_e(spline2dadi, temptable[tlen-1], P, accT, accP, &adiabat);
-        return adiabat/1E10;
+        return adiabat;
       }          
     }
     else  
-      return adiabat/1E10;     
+      return adiabat;     
   }
   rho_guess = density(P*1E10, T, rho_guess);
   double V = volume(rho_guess);

@@ -106,7 +106,6 @@ namespace Mixing {
     int    n_thermal    = 0;    // number of phases contributing to gradient
 
     double guess = rho_guess;
-
     for (size_t i = 0; i < n; ++i)
     {
       EOS *phase = components[i];
@@ -198,16 +197,10 @@ namespace Mixing {
       if (!gsl_finite(m_i) || m_i <= 0.0)
         return numeric_limits<double>::quiet_NaN();
 
-      // Get partial derivatives
-      const double pPpT_rho_i = phase->pPpT_rho(rho_i, T);  // GPa/K
-      const double pPprho_T_i = phase->pPprho_T(rho_i, T);  // GPa/(g/cm^3)
-
-      if (!gsl_finite(pPpT_rho_i) || !gsl_finite(pPprho_T_i) || pPprho_T_i == 0.0)
-        return numeric_limits<double>::quiet_NaN();
-
-      // Calculate (∂V/∂T)_P,i = (m_i/rho_i^2) * (pPpT_rho,i / pPprho_T,i)
-      // Units: (g/mol) / (g/cm^3)^2 * (GPa/K) / (GPa/(g/cm^3)) = cm^3/(mol*K)
-      const double dVdT_P_i = (m_i / (rho_i * rho_i)) * (pPpT_rho_i / pPprho_T_i);
+      // Calculate (∂V/∂T)_P,i using the dVdT_P function
+      // For 4-column tables (eqntype==7 && thermal_type==10), this directly uses table data
+      // For other types, it uses: (m_i/rho_i^2) * (pPpT_rho,i / pPprho_T,i)
+      const double dVdT_P_i = phase->dVdT_P(P_GPa, T);
 
       if (!gsl_finite(dVdT_P_i))
         return numeric_limits<double>::quiet_NaN();
@@ -258,14 +251,14 @@ namespace Mixing {
                                                                               \
   double dTdP_S_##NAME(double P_GPa, double T, double &rho_guess)         \
   {                                                                           \
-    return dTdP_S_ideal_mixture_full(P_GPa, T, comps_##NAME, x_##NAME, rho_guess);           \
+    return dTdP_S_ideal_mixture_full(P_GPa, T, comps_##NAME, x_##NAME, rho_guess); \
   }                                                                           \
                                                                               \
   double dTdP_##NAME(double P_cgs, double T, double &rho_guess)               \
   {                                                                           \
     const double P_GPa   = P_cgs / 1.0e10;                                    \
     const double grad_GPa = dTdP_S_ideal_mixture_full(P_GPa, T,                    \
-                                                 comps_##NAME, x_##NAME, rho_guess);     \
+                                                 comps_##NAME, x_##NAME, rho_guess); \
     if (!gsl_finite(grad_GPa))                                                \
       return numeric_limits<double>::quiet_NaN();                        \
     return grad_GPa / 1.0e10;                                                 \

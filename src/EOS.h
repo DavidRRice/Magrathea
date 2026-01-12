@@ -65,6 +65,8 @@ struct EOS
   // partial P partial rho at constant T in GPa / g/cm^3
   double pPpT_rho(double rho, double T);
   // partial P partial T at constant rho in GPa / K
+  double dVdT_P(double P_GPa, double T);
+  // partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K
   double dTdm(double m, double r, double rho, double P, double T);
   // partial T partial enclosed mass, P in cgs
   double dTdP_S(double P, double T, double &rho_guess);
