@@ -13,17 +13,17 @@ namespace Mixing {
   // - P_cgs in microbar (same as EOS::density)
   // - T in K
   // - components: EOS* of each pure phase
-  // - x_mol: molar fractions of each component (will be normalized)
+  // - x_mass: mass fractions of each component
   double density_ideal_mixture(double P_cgs, double T,
                                const vector<EOS*> &components,
-                               const vector<double> &x_mol, double rho_guess = 1.0);
+                               const vector<double> &x_mass, double rho_guess = 1.0);
 
   // Ideal mixture adiabatic gradient dT/dP|S:
   // - P in cgs (same as EOS::dTdP_S)
   // - returns K/GPa
   double dTdP_S_ideal_mixture(double P_cgs, double T,
                               const vector<EOS*> &components,
-                              const vector<double> &x_mol, double rho_guess = 1.0);
+                              const vector<double> &x_mass, double rho_guess = 1.0);
 
   // Ideal mixture adiabatic gradient dT/dP|S (full rigorous version):
   // - More rigorous formulation accounting for volume expansion
@@ -31,7 +31,7 @@ namespace Mixing {
   // - returns K/GPa
   double dTdP_S_ideal_mixture_full(double P_cgs, double T,
                                     const vector<EOS*> &components,
-                                    const vector<double> &x_mol, double rho_guess = 1.0);
+                                    const vector<double> &x_mass, double rho_guess = 1.0);
 
   // ---------- Wrappers for Mixtures ----------
   // one macro to declare the triple definitions for any NAME

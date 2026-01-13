@@ -51,7 +51,6 @@ namespace Mixing {
     // sanitize guess (avoid absurd values propagating into component solvers)
     double guess = rho_guess;
     
-    double M_mix = 0.0;   // g/mol
     double V_mix = 0.0;   // cm^3/mol
 
     for (size_t i = 0; i < n; ++i)
@@ -66,16 +65,13 @@ namespace Mixing {
       if (!gsl_finite(rho_i) || rho_i <= 0.0)
         return numeric_limits<double>::quiet_NaN();
 
-      const double v_i = Mi / rho_i;             // cm^3/mol
-
-      M_mix += x[i] * Mi;
-      V_mix += x[i] * v_i;
+      V_mix += x[i] / rho_i;
     }
 
     if (V_mix <= 0.0)
       return numeric_limits<double>::quiet_NaN();
 
-    return M_mix / V_mix; // g/cm^3
+    return 1 / V_mix; // g/cm^3
   }
 
   // -------------------- General ideal mixture dT/dP|S --------------------
@@ -151,7 +147,7 @@ namespace Mixing {
   //
   // More rigorous formulation accounting for volume expansion:
   //
-  //   (dT/dP)_mix = (Σ x_i (∂V/∂T)_P,i) / (Σ x_i (∂V/∂T)_P,i / (dT/dP)_i)
+  //   (dT/dP)_mix = (Σ x_i/m_i (∂V/∂T)_P,i) / (Σ x_i/m_i (∂V/∂T)_P,i / (dT/dP)_i)
   //
   // where (∂V/∂T)_P,i = (m_i/rho_i^2) * (pPpT_rho,i / pPprho_T,i)
   //
@@ -211,8 +207,8 @@ namespace Mixing {
         return numeric_limits<double>::quiet_NaN();
 
       // Accumulate terms
-      numerator += x[i] * dVdT_P_i;
-      denominator += x[i] * dVdT_P_i / grad_i;
+      numerator += x[i]/m_i * dVdT_P_i;
+      denominator += x[i]/m_i * dVdT_P_i / grad_i;
       ++n_thermal;
     }
 
