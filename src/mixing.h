@@ -19,17 +19,17 @@ namespace Mixing {
                                const vector<double> &x_mol, double rho_guess = 1.0);
 
   // Ideal mixture adiabatic gradient dT/dP|S:
-  // - P_GPa in GPa (same as EOS::dTdP_S)
+  // - P in cgs (same as EOS::dTdP_S)
   // - returns K/GPa
-  double dTdP_S_ideal_mixture(double P_GPa, double T,
+  double dTdP_S_ideal_mixture(double P_cgs, double T,
                               const vector<EOS*> &components,
                               const vector<double> &x_mol, double rho_guess = 1.0);
 
   // Ideal mixture adiabatic gradient dT/dP|S (full rigorous version):
   // - More rigorous formulation accounting for volume expansion
-  // - P_GPa in GPa (same as EOS::dTdP_S)
+  // - P in cgs (same as EOS::dTdP_S)
   // - returns K/GPa
-  double dTdP_S_ideal_mixture_full(double P_GPa, double T,
+  double dTdP_S_ideal_mixture_full(double P_cgs, double T,
                                     const vector<EOS*> &components,
                                     const vector<double> &x_mol, double rho_guess = 1.0);
 
@@ -41,7 +41,7 @@ namespace Mixing {
   #define DECLARE_IDEAL_MIX(NAME)                                      \
     double density_##NAME(double P_cgs, double T, double rho_guess);   \
     double dTdP_##NAME(double P_cgs, double T, double &rho_guess);     \
-    double dTdP_S_##NAME(double P_GPa, double T, double &rho_guess);
+    double dTdP_S_##NAME(double P_cgs, double T, double &rho_guess);
 
   DECLARE_IDEAL_MIX(FoFay)
   DECLARE_IDEAL_MIX(OlMix)

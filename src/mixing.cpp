@@ -88,7 +88,7 @@ namespace Mixing {
   // subset of components that actually have a thermal model
   // (thermal_type != 0).
   //
-  double dTdP_S_ideal_mixture(double P_GPa, double T,
+  double dTdP_S_ideal_mixture(double P_cgs, double T,
                               const vector<EOS*> &components,
                               const vector<double> &x_in, double rho_guess)
   {
@@ -98,8 +98,6 @@ namespace Mixing {
 
     vector<double> x = x_in;
     normalize(x);
-
-    const double P_cgs = P_GPa * 1.0e10; // microbar
 
     double inv_grad_sum = 0.0;  // Σ x_i / grad_i using original x_i
     double x_used_sum   = 0.0;  // Σ x_i over phases with a usable gradient
@@ -120,7 +118,7 @@ namespace Mixing {
       if (!gsl_finite(rho_i) || rho_i <= 0.0)
         return numeric_limits<double>::quiet_NaN();
 
-      const double grad_i = phase->dTdP_S(P_GPa, T, rho_i); // K/GPa
+      const double grad_i = phase->dTdP_S(P_cgs, T, rho_i); // K/GPa
 
       // For EOS that *should* have a gradient, treat non-finite/zero as error.
       if (!gsl_finite(grad_i) || grad_i == 0.0)
@@ -159,7 +157,7 @@ namespace Mixing {
   //
   // This accounts for the thermal expansion of each component.
   //
-  double dTdP_S_ideal_mixture_full(double P_GPa, double T,
+  double dTdP_S_ideal_mixture_full(double P_cgs, double T,
                                     const vector<EOS*> &components,
                                     const vector<double> &x_in, double rho_guess)
   {
@@ -170,8 +168,7 @@ namespace Mixing {
     vector<double> x = x_in;
     normalize(x);
 
-    const double P_cgs = P_GPa * 1.0e10; // microbar
-
+    double P_GPa = P_cgs / 1E10;
     double numerator = 0.0;    // Σ x_i (∂V/∂T)_P,i
     double denominator = 0.0;  // Σ x_i (∂V/∂T)_P,i / (dT/dP)_i
     int    n_thermal = 0;      // number of phases contributing to gradient
@@ -206,10 +203,11 @@ namespace Mixing {
         return numeric_limits<double>::quiet_NaN();
 
       // Get component adiabatic gradient
-      const double grad_i = phase->dTdP_S(P_GPa, T, rho_i); // K/GPa
+      const double grad_i = phase->dTdP_S(P_cgs, T, rho_i); // K/GPa
 
-      // For EOS that *should* have a gradient, treat non-finite/zero as error.
-      if (!gsl_finite(grad_i) || grad_i == 0.0)
+      // For EOS that *should* have a gradient, treat non-finite/zero/negative as error.
+      // Negative grad_i would cause denominator to become negative, leading to large negative dTdP
+      if (!gsl_finite(grad_i) || grad_i <= 0.0)
         return numeric_limits<double>::quiet_NaN();
 
       // Accumulate terms
@@ -240,7 +238,7 @@ namespace Mixing {
   //
   // and generates:
   //   density_NAME(P_cgs, T, rho_guess)
-  //   dTdP_S_NAME(P_GPa, T, rho_guess)
+  //   dTdP_S_NAME(P_cgs, T, rho_guess)
   //   dTdP_NAME(P_cgs, T, rho_guess)
   //
   #define DEFINE_IDEAL_MIX_WRAPPERS(NAME)                                       \
@@ -249,19 +247,18 @@ namespace Mixing {
     return density_ideal_mixture(P_cgs, T, comps_##NAME, x_##NAME, rho_guess);          \
   }                                                                           \
                                                                               \
-  double dTdP_S_##NAME(double P_GPa, double T, double &rho_guess)         \
+  double dTdP_S_##NAME(double P_cgs, double T, double &rho_guess)         \
   {                                                                           \
-    return dTdP_S_ideal_mixture_full(P_GPa, T, comps_##NAME, x_##NAME, rho_guess); \
+    return dTdP_S_ideal_mixture_full(P_cgs, T, comps_##NAME, x_##NAME, rho_guess); \
   }                                                                           \
                                                                               \
   double dTdP_##NAME(double P_cgs, double T, double &rho_guess)               \
   {                                                                           \
-    const double P_GPa   = P_cgs / 1.0e10;                                    \
-    const double grad_GPa = dTdP_S_ideal_mixture_full(P_GPa, T,                    \
+    const double grad_GPa = dTdP_S_ideal_mixture_full(P_cgs, T,                    \
                                                  comps_##NAME, x_##NAME, rho_guess); \
     if (!gsl_finite(grad_GPa))                                                \
       return numeric_limits<double>::quiet_NaN();                        \
-    return grad_GPa / 1.0e10;                                                 \
+    return grad_GPa;                                                 \
   }
 
   bool mantle_wFeO_from_MgNumber(

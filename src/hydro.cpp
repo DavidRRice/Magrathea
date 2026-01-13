@@ -85,7 +85,7 @@ int derivs_m2(double x, const double y[], double dydx[], void * params)
   if (thermal == 0 || thermal == 4)
     dydx[2] = 0;
   else if (thermal == 10)
-    dydx[2] = Phase->dTdP_S(y[1], y[2], rho)*dydx[1];
+    dydx[2] = Phase->dTdP_S(y[1], y[2], rho)*dydx[1]/1E10;
   else
     dydx[2] = -Phase->dTdm(Mtot-x, y[0], rho, y[1], y[2]);
   
@@ -136,7 +136,7 @@ int derivs_m3(double x, const double y[], double dydx[], void * params)
   if (thermal == 0 || thermal == 4)
     dydx[2] = 0;
   else if (thermal == 10)
-    dydx[2] = Phase->dTdP_S(y[1], y[2], rho)*dydx[1];
+    dydx[2] = Phase->dTdP_S(y[1], y[2], rho)*dydx[1]/1E10;
   else
     dydx[2] = Phase->dTdm(x, y[0], rho, y[1], y[2]);
 
@@ -744,7 +744,7 @@ hydro::hydro(double Rp, double Pc, double Tc,  vector<PhaseDgm> &Comp_in, vector
 
   if (thermal == 2)
   {
-    Tt -= Phase->dTdP(P[0], Tc, rhot) * (P[0]-P[1]);
+    Tt -= Phase->dTdP(P[0], Tc, rhot) * (P[0]-P[1])/1E10;
     rhot = Phase -> density(P[1], Tt, rhot);
   }
   else if (thermal == 0 || thermal == 4) // isothermal or fitted along isentrope
@@ -1730,7 +1730,7 @@ int fitting_error(const gsl_vector *x, void *params, gsl_vector *f)
   gsl_vector_set (f, 0, (Ri-Ro) / (Ri+Ro)); // set the mass different at the fitting point and try to normalize the difference
   gsl_vector_set (f, 1, (Pi-Po) / (Pi+Po));
   gsl_vector_set (f, 2, (Ti-To) / (Ti+To));
-
+  cout<<Rp<<' '<<Pc<<' '<<Tc<<' '<<Ri<<' '<<Ro<<' '<<Pi<<' '<<Po<<' '<<Ti<<' '<<To<<endl;
   return GSL_SUCCESS;
 }
 

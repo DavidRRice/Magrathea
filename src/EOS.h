@@ -19,7 +19,7 @@ struct EOS
   EOS();
   EOS(string phaseinput, double params[][2], int length);
   EOS(string phaseinput, string filename); // construction EOS from interpolate an input file
-  EOS(string phaseinput, double (*f)(double P, double T, double rho_guess), double (*g)(double rho, double T)=NULL); // construct EOS from external functions. The function has to be able to generate a rough guess for the density when the input rho_guess is clearly unreliable.
+  EOS(string phaseinput, double (*f)(double P_cgs, double T, double rho_guess), double (*g)(double rho, double T)=NULL); // construct EOS from external functions. The function has to be able to generate a rough guess for the density when the input rho_guess is clearly unreliable.
   EOS(string phaseinput, double *Plist, double *rholist, int len_list); // construction EOS from interpolate an input pressure density list
   EOS(string phaseinput, double params[][2], double bparams[], int length, int blength); // construction EOS for RTpress
   ~EOS();
@@ -27,9 +27,9 @@ struct EOS
   void setphasename(string phaseinput){phasetype=phaseinput;}
   void modifyEOS(double params[][2], int length=3);  // modify the constructed EOS parameters
   void modifyEOS(int index, double value);	     // modify one value of the EOS
-  void modify_extern_density(double (*f)(double P, double T, double rho_guess)){density_extern = f;}
+  void modify_extern_density(double (*f)(double P_cgs, double T, double rho_guess)){density_extern = f;}
   void modify_extern_entropy(double (*g)(double rho, double T)){entropy_extern = g; thermal_type = 1;}
-  void modify_dTdP(double (*h)(double P, double T, double &rho_guess)){dTdP = h; thermal_type = 2;} // If the dTdP is set, it will overwrite the entropy method. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient. The dTdP should be in the unit of K/microbar.
+  void modify_dTdP(double (*h)(double P_cgs, double T, double &rho_guess)){dTdP = h; thermal_type = 2;} // If the dTdP is set, it will overwrite the entropy method. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient. The dTdP should be in the unit of K/GPa.
   
   double BM3(double rho);	// input rho in g/cm^3, return pressure in GPa, type 0
   double BM4(double rho);	// type 1
@@ -43,8 +43,8 @@ struct EOS
   
   double Pth(double rho, double T); // thermal pressure in GPa, and electron pressure or anharmonic if provided.
   double adiabatic_index() const;	    // get the adiabatic index for ideal gas.  Vibrational freedom is always ignored.
-  double density(double P, double T, double rho_guess); // input P in cgs (microbar), at given temperature, return density in g/cm^3
-  double (*density_extern)(double P, double T, double rho_guess);		// using external function, input P, T in cgs, return density in g/cm^3
+  double density(double P_cgs, double T, double rho_guess); // input P in cgs (microbar), at given temperature, return density in g/cm^3
+  double (*density_extern)(double P_cgs, double T, double rho_guess);		// using external function, input P, T in cgs, return density in g/cm^3
   double (*entropy_extern)(double rho, double T);	// using the external entropy function.
   void printEOS();					// print EOS table into a file named with ./tabulated/phasename.txt
   string getEOS(){return phasetype;}		// get the type of EOS
@@ -54,7 +54,7 @@ struct EOS
   EOS*  setmmol(double m){ mmol = m; return this; }
   double getP0(){return P0;}
   double getT0(){return T0;}
-  double (*dTdP)(double P, double T, double &rho_guess); // return the temperature gradient at given pressure and temperature point. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient.
+  double (*dTdP)(double P_cgs, double T, double &rho_guess); // return the temperature gradient at given pressure and temperature point. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient.  The dTdP should be in the unit of K/GPa.
   void DebyeT(double x, double &gamma, double &Theta);	   // return the Grueneisen parameter, Debye temperature or Einstein temperature according to Altshuler form.  If Theta0 is not available, a Debye temperature scaling factor is returned
   double entropy(double rho, double T); // Given the volume per mol and temperature, calculate the entropy over n*R, or P V^{7/5} / R for ideal gas.
   double pSpV_T(double V, double T);
@@ -67,10 +67,10 @@ struct EOS
   // partial P partial T at constant rho in GPa / K
   double dVdT_P(double P_GPa, double T);
   // partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K
-  double dTdm(double m, double r, double rho, double P, double T);
+  double dTdm(double m, double r, double rho, double P_cgs, double T);
   // partial T partial enclosed mass, P in cgs
-  double dTdP_S(double P, double T, double &rho_guess);
-  // partial T partial P along isentrope in K / GPa, given pressure in GPa
+  double dTdP_S(double P_cgs, double T, double &rho_guess);
+  // partial T partial P along isentrope in K / GPa, given pressure in microbar
   int getthermal(){return thermal_type;}	
 
 
@@ -96,18 +96,18 @@ struct EOS
   // Grueneisen parameter (Eq. 17), take volume in cm^3 / mol
   double cp (double T);
   // specific heat capacity in J/g/K at constant pressure
-  double alpha (double P, double T);
-  // coefficient of thermal expansion in K^-1. Input P in GPa, T in K
+  double alpha (double P_cgs, double T);
+  // coefficient of thermal expansion in K^-1. Input P in cgs, T in K
   
   double Press (double rho, double T);
   // pressure in GPa (Eq. 6, 13, 14) in Wolf&Bower 2018, take density in g/cm^3.  For thermal expansion representation, this return the pressure at T0.
-  double dTdV_S(double V, double P, double T);
-  // adiabatic temperature gradient in K mol/cm^3, take volume in cm^3 / mol, P in GPa
+  double dTdV_S(double V, double P_cgs, double T);
+  // adiabatic temperature gradient in K mol/cm^3, take volume in cm^3 / mol, P in cgs
   double density(double V) {return mmol/V;}
   // return density in g/cm^3
   double volume(double rho){return mmol/rho;}
   // return volume in cm^3/mol, take density in g/cm^3
-  double density(double P1, double T1, double rho_guess, double P2, double &T2);
+  double density(double P1_cgs, double T1, double rho_guess, double P2_cgs, double &T2);
   // Given the pressure (cgs), temperature, density of the previous step, the pressure of the next step, return the temperature and density at the new pressure. This solver doesn't conserve the entropy well enough. Only used as an approximation in the first integration step from the core of the planet where dTdm has 0/0 limit.
   double gamma_shomate(double T) const;
   // helper to compute gamma(T) from Shomate Cp° coefficients
@@ -118,7 +118,7 @@ private:
   double V0, K0, K0p, K0pp, mmol, P0, Theta0, gamma0, beta, gammainf, gamma0p, e0, g, T0, alpha0, alpha1, xi, cp_a, cp_b, cp_c;
   double at1, at2, at3, at4, ap1, ap2, ap3, ap4;
   int n, Z;
-  double a_vdW, b_vdW;         // van der Waals constants.
+  double a_vdW, b_vdW;         // van der Waals constants, in unit of bar L^2 / mol^2 = 100 GPa cm^3 / mol^2,  L / mol
   // --- Shomate Cp°(T) for gas, NIST/JANAF (molar: J/mol/K) ---
   double shA, shB, shC, shD, shE;   // A..E are enough for Cp°(T); F..H not needed for gamma
   bool   has_shomate;

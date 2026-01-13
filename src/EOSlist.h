@@ -7,12 +7,12 @@ extern EOS *Fe_liquid, *Fe_liquid2, *Fe_fcc, *Fe_bcc, *Fe_hcp, *Fe_hcp2, *Fe_Sea
 
 extern EOS *FoFayMix, *OlMix, *WdsMix, *RwdMix, *BrgMix, *PPvMix, *RockWatMix, *AtmMix;
 
-double dTdP_Si_Dummy (double P, double T);
+double dTdP_Si_Dummy (double P_cgs, double T);
 // A temperature gradient that equals to the melting curve. Guarantee the temperature won't drop below the melting curve. 
 
-double H2OSC(double P,double T, double rho_guess);
+double H2OSC(double P_cgs,double T, double rho_guess);
 
-double dTdP_S_H2OSC(double P, double T, double &rho_guess);
+double dTdP_S_H2OSC(double P_cgs, double T, double &rho_guess);
 
 void ELECNR(double DENSE, double TEMP,
             double &CHI, double &FEid, double &PEid, double &UEid,

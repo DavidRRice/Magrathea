@@ -259,15 +259,16 @@ EOS *Si_Seager = (new EOS("Si (Seager)", "./tabulated/silicate.txt"))->setmmol(m
 
 EOS *Si_Dummy = new EOS("Si Dummy", Si_BM2fit_array, sizeof(Si_BM2fit_array)/2/sizeof(Si_BM2fit_array[0][0]));
 
-double dTdP_Si_Dummy (double P, double T)
+double dTdP_Si_Dummy (double P_cgs, double T)
 // A temperature gradient that equals to the melting curve. Guarantee the temperature won't drop below the melting curve. 
+// P is in cgs (microbar), returns K/GPa
 {
-  P /= 1E10;
-  if (T > 1830*pow(1+P/4.6, 0.33))
-    return 131.2826087*pow(1+P/4.6, -0.67)/1E10;
+  double P_GPa = P_cgs / 1E10;  // Convert to GPa
+  if (T > 1830*pow(1+P_GPa/4.6, 0.33))
+    return 131.2826087*pow(1+P_GPa/4.6, -0.67);  // Already in K/GPa, no need to divide by 1E10
   else
   {
-    cout<<"Error: The pressure "<<P<<" GPa and temperature "<<T<<" K are inconsistent with liquid silicate."<<endl;
+    cout<<"Error: The pressure "<<P_GPa<<" GPa and temperature "<<T<<" K are inconsistent with liquid silicate."<<endl;
     return numeric_limits<double>::quiet_NaN();
   }
 }
@@ -463,11 +464,11 @@ EOS *Ice_Dummy = new EOS("Ice Dummy", IceVI_ExoPlex_array, sizeof(IceVI_ExoPlex_
 // Modified EOSs to match Zeng 2013
 double FMNR[2][13] = {{2.45, 2.5, 3.25, 3.5, 3.75, 4, 5, 6, 7, 9, 11, 13, 15}, {37.3, 43.6, 140, 183, 234, 290, 587, 966, 1440, 2703, 4405, 6416, 8893}};
 
-double Zeng2013FFH(double P, double T, double rho_guess)
+double Zeng2013FFH(double P_cgs, double T, double rho_guess)
 {
-  P/=1E10;			// convert to GPa
+  double P_GPa = P_cgs/1E10;			// convert to GPa
 
-  return 18.01528 * (0.0805 + 0.0229*(1-exp(-0.0743*P)) + 0.1573*(1-exp(-0.0061*P)));
+  return 18.01528 * (0.0805 + 0.0229*(1-exp(-0.0743*P_GPa)) + 0.1573*(1-exp(-0.0061*P_GPa)));
 }
   
 EOS *IceZeng2013FFH = new EOS("Ice (FFH 2004)", Zeng2013FFH);
@@ -1051,11 +1052,12 @@ EOS *Ca_Perovskite = []() {
 }();
 
 // ============== An example on the format of dTdP function ==============
-double dTdP_gas(double P, double T)
+double dTdP_gas(double P_cgs, double T)
 // return the adiabatic temperature gradient at given pressure and temperature point for ideal gas.
+// P is in cgs (microbar), returns K/GPa
 {
-  if (P != 0)
-    return 2.*T / (7.*P);
+  if (P_cgs != 0)
+    return 2.*T / (7.*P_cgs) * 1E10;  // Convert from K/microbar to K/GPa
   else
   {
     cout<<"Error: Can't get adiabatic temperature gradient for diatomic gas at P=0."<<endl;
@@ -1375,17 +1377,17 @@ double dTdP_S_H2O_of_rho(double rho, double T)
   return dT_dP_S;
 }
 
-double H2OSC(double P, double T, double rho_guess)
-// P in GPa
+double H2OSC(double P_cgs, double T, double rho_guess)
+// P in cgs (microbar), same as density_solver expects
 {
   if(!(rho_guess>0.5 && rho_guess<20))
-    rho_guess = max(1 + 0.5*log(P/5E10),0.1);
-  return density_solver(P,T,PH2OSC,rho_guess);
+    rho_guess = max(1 + 0.5*log(P_cgs/5E10),0.1);  // P/5E10 converts microbar to GPa for the log
+  return density_solver(P_cgs,T,PH2OSC,rho_guess);
 }
 
-double dTdP_S_H2OSC(double P, double T, double &rho_guess)
+double dTdP_S_H2OSC(double P_cgs, double T, double &rho_guess)
 {
-  rho_guess = density_solver(P,T,PH2OSC,rho_guess);
+  rho_guess = density_solver(P_cgs,T,PH2OSC,rho_guess);
   return dTdP_S_H2O_of_rho(rho_guess, T);
 }
 	

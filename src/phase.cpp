@@ -66,20 +66,20 @@ void PhaseDgm::set_phase_highP(int k, double *start_pressure, EOS** phase_name)
   }
 }
 
-EOS* PhaseDgm::find_phase(double P, double T)
+EOS* PhaseDgm::find_phase(double P_cgs, double T)
 // Pressure in microbar
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
   EOS* phase_matched;
   string first_token, s;
   if(n == 0)
-    return phase_lowP(P,T);
+    return phase_lowP(P_cgs,T);
   else if(n == 1)
   {
-    phase_matched = phase_lowP(P,T);
+    phase_matched = phase_lowP(P_cgs,T);
     s = phase_matched->getEOS();
     first_token = s.substr(0,s.find(" ("));
     if(first_token == phase_list[0]->getEOS())
@@ -90,14 +90,14 @@ EOS* PhaseDgm::find_phase(double P, double T)
   else
   {
     int i = n-2;
-    while(P < start_P[i]*1E10 && i > 0)
+    while(P_cgs < start_P[i]*1E10 && i > 0)
       i--;
 
-    if(P >= start_P[i]*1E10)
+    if(P_cgs >= start_P[i]*1E10)
       return phase_list[i+1];
     else
     {
-      phase_matched = phase_lowP(P,T);
+      phase_matched = phase_lowP(P_cgs,T);
       s = phase_matched->getEOS();
       first_token = s.substr(0,s.find(" ("));
       if(first_token == phase_list[0]->getEOS())
@@ -108,33 +108,33 @@ EOS* PhaseDgm::find_phase(double P, double T)
   }
 }
 
-double checkphase(double P, void *params)
+double checkphase(double P_cgs, void *params)
 {
   struct phase_params *p = (struct phase_params *) params;
   PhaseDgm* cmpn = p->cmpn;
   double Pu=p->Pu, Pl=p->Pl;
   
-  if (P < Pl || P > Pu)
+  if (P_cgs < Pl || P_cgs > Pu)
   {
-    cout<<"Pressure "<<P/1E10<<" is outside the bound between "<<Pl<<" and "<<Pu<<" when solving the pressure of phase boundary for component "<<cmpn->getname()<<" from phase "<<p->Phase->getEOS()<<endl;
+    cout<<"Pressure "<<P_cgs/1E10<<" is outside the bound between "<<Pl<<" and "<<Pu<<" when solving the pressure of phase boundary for component "<<cmpn->getname()<<" from phase "<<p->Phase->getEOS()<<endl;
     return numeric_limits<double>::quiet_NaN();
   }
   
   double Tt;
-  if (P == Pu)			// In case the output Tt is very close but not exact Tu or Tl.
+  if (P_cgs == Pu)			// In case the output Tt is very close but not exact Tu or Tl.
     Tt = p->Tu;
-  else if (P == Pl)
+  else if (P_cgs == Pl)
     Tt = p->Tl;
   else
-    Tt = (p->Tl*(Pu-P)+p->Tu*(P-Pl))/(Pu-Pl);			// Linear interpolate temperature at P
+    Tt = (p->Tl*(Pu-P_cgs)+p->Tu*(P_cgs-Pl))/(Pu-Pl);			// Linear interpolate temperature at P
 
-  if (cmpn->find_phase(P, Tt) == p->Phase)
+  if (cmpn->find_phase(P_cgs, Tt) == p->Phase)
     return 1.;
   else
     return -1.;
 }
 
-EOS* PhaseDgm::find_phase_boundary(double Pl, double Pu, double Tl, double Tu, bool inward, double &Po, double &To, double &rhoo, double &Pn, double &Tn, double &rhon)
+EOS* PhaseDgm::find_phase_boundary(double Pl_cgs, double Pu_cgs, double Tl, double Tu, bool inward, double &Po_cgs, double &To, double &rhoo, double &Pn_cgs, double &Tn, double &rhon)
 // Used when integrate adiabatic profile across the phase boundary.  Given the pressure in cgs, integration direction, the lower and upper pressure and temperature limit (at previous and next integral step depends on the integration direction).  Return the pressure, temperature, density at old (o) phase boundary and new (n) phase boundary.
 {
   EOS* new_phase;
@@ -149,29 +149,29 @@ EOS* PhaseDgm::find_phase_boundary(double Pl, double Pu, double Tl, double Tu, b
 
   EOS* old_phase;
   if (inward)
-    old_phase = find_phase (Pl, Tl);
+    old_phase = find_phase (Pl_cgs, Tl);
   else
-    old_phase = find_phase (Pu, Tu);
+    old_phase = find_phase (Pu_cgs, Tu);
     
-  struct phase_params params = {Pl, Pu, Tl, Tu, old_phase, this};
+  struct phase_params params = {Pl_cgs, Pu_cgs, Tl, Tu, old_phase, this};
   F.function = &checkphase;
   F.params = &params;
 
-  status = gsl_root_fsolver_set (s, &F, Pl, Pu);
+  status = gsl_root_fsolver_set (s, &F, Pl_cgs, Pu_cgs);
   if (status == GSL_EINVAL)
   {
-    cout<<"Error: The phase transition boundary is not between the lower pressure bound "<<Pl<<" and upper pressure bound "<<Pu<<", low temperature "<<Tl<<" and high temperature "<<Tu<<" when find the phase boundary of component "<<Comp_type<<" from phase "<<old_phase->getEOS()<<" to new phase ";
+    cout<<"Error: The phase transition boundary is not between the lower pressure bound "<<Pl_cgs<<" and upper pressure bound "<<Pu_cgs<<", low temperature "<<Tl<<" and high temperature "<<Tu<<" when find the phase boundary of component "<<Comp_type<<" from phase "<<old_phase->getEOS()<<" to new phase ";
 
     if (inward)
-      new_phase = find_phase (Pu, Tu);
+      new_phase = find_phase (Pu_cgs, Tu);
     else
-      new_phase = find_phase (Pl, Tl);
+      new_phase = find_phase (Pl_cgs, Tl);
     
     gsl_root_fsolver_free (s);
-    Po = numeric_limits<double>::quiet_NaN();
+    Po_cgs = numeric_limits<double>::quiet_NaN();
     To = numeric_limits<double>::quiet_NaN();
     rhoo = numeric_limits<double>::quiet_NaN();
-    Pn = numeric_limits<double>::quiet_NaN();
+    Pn_cgs = numeric_limits<double>::quiet_NaN();
     Tn = numeric_limits<double>::quiet_NaN();
     rhon = numeric_limits<double>::quiet_NaN();
     return NULL;
@@ -180,10 +180,10 @@ EOS* PhaseDgm::find_phase_boundary(double Pl, double Pu, double Tl, double Tu, b
   {
     cout<<"Error: Failed to set up the phase boundary of component "<<Comp_type<<" from phase "<<old_phase->getEOS()<<endl;
     gsl_root_fsolver_free (s);
-    Po = numeric_limits<double>::quiet_NaN();
+    Po_cgs = numeric_limits<double>::quiet_NaN();
     To = numeric_limits<double>::quiet_NaN();
     rhoo = numeric_limits<double>::quiet_NaN();
-    Pn = numeric_limits<double>::quiet_NaN();
+    Pn_cgs = numeric_limits<double>::quiet_NaN();
     Tn = numeric_limits<double>::quiet_NaN();
     rhon = numeric_limits<double>::quiet_NaN();
     return NULL;
@@ -203,12 +203,12 @@ EOS* PhaseDgm::find_phase_boundary(double Pl, double Pu, double Tl, double Tu, b
 
   if (status == GSL_CONTINUE)
   {
-    cout<<"Error: Can't find the pressure of the phase boundary from "<<find_phase (Pl, Tl) -> getEOS()<<" and "<<find_phase (Pu, Tu) -> getEOS()<<" at pressure "<<Pl/1E10<<" GPa within maximum interation "<<max_iter<<endl;
+    cout<<"Error: Can't find the pressure of the phase boundary from "<<find_phase (Pl_cgs, Tl) -> getEOS()<<" and "<<find_phase (Pu_cgs, Tu) -> getEOS()<<" at pressure "<<Pl_cgs/1E10<<" GPa within maximum interation "<<max_iter<<endl;
     gsl_root_fsolver_free (s);
-    Po = numeric_limits<double>::quiet_NaN();
+    Po_cgs = numeric_limits<double>::quiet_NaN();
     To = numeric_limits<double>::quiet_NaN();
     rhoo = numeric_limits<double>::quiet_NaN();
-    Pn = numeric_limits<double>::quiet_NaN();
+    Pn_cgs = numeric_limits<double>::quiet_NaN();
     Tn = numeric_limits<double>::quiet_NaN();
     rhon = numeric_limits<double>::quiet_NaN();
     return NULL;
@@ -216,20 +216,20 @@ EOS* PhaseDgm::find_phase_boundary(double Pl, double Pu, double Tl, double Tu, b
 
   if (inward)
   {
-    Pn = P2;
-    Po = P1;
+    Pn_cgs = P2;
+    Po_cgs = P1;
   }
   else
   {
-    Pn = P1;
-    Po = P2;
+    Pn_cgs = P1;
+    Po_cgs = P2;
   }
 
-  Tn = (Tl*(Pu-Pn)+Tu*(Pn-Pl))/(Pu-Pl);			// Linear interpolate temperature at P
-  To = (Tl*(Pu-Po)+Tu*(Po-Pl))/(Pu-Pl);			// Linear interpolate temperature at P
-  new_phase = find_phase (Pn, Tn);
-  rhon = new_phase->density (Pn, Tn, rhoo);
-  rhoo = find_phase (Po, To) -> density(Po, To, rhoo);
+  Tn = (Tl*(Pu_cgs-Pn_cgs)+Tu*(Pn_cgs-Pl_cgs))/(Pu_cgs-Pl_cgs);			// Linear interpolate temperature at P
+  To = (Tl*(Pu_cgs-Po_cgs)+Tu*(Po_cgs-Pl_cgs))/(Pu_cgs-Pl_cgs);			// Linear interpolate temperature at P
+  new_phase = find_phase (Pn_cgs, Tn);
+  rhon = new_phase->density (Pn_cgs, Tn, rhoo);
+  rhoo = find_phase (Po_cgs, To) -> density(Po_cgs, To, rhoo);
   gsl_root_fsolver_free (s);
   return new_phase;
 }
@@ -249,19 +249,19 @@ double dunaeva_phase_curve(double P, double a, double b, double c, double d, dou
 // ========== Phase Diagrams for Core  ================
 // ---------------------------------
 // Fe Default: hcp and Liquid iron
-EOS* find_phase_Fe_default(double P, double T)
+EOS* find_phase_Fe_default(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
 
-  P /= 1E10;			// convert microbar to GPa
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
 
   // Default Core
-  if( T > 12.8*P + 2424 && T > 13.7*P + 2328)   // melting curve from Dorogokupets et al. 2017, Scientific Reports. fcc and hcp Fe melting curve.
+  if( T > 12.8*P_GPa + 2424 && T > 13.7*P_GPa + 2328)   // melting curve from Dorogokupets et al. 2017, Scientific Reports. fcc and hcp Fe melting curve.
   {  
-    if(P<80 || T>10000)
+    if(P_GPa<80 || T>10000)
       return Fe_liquid2;
     else
       return Fe_liquid;
@@ -272,19 +272,19 @@ EOS* find_phase_Fe_default(double P, double T)
 
 // ---------------------------------
 // Fe_fccbcc: Includes low pressure fcc and bcc iron
-EOS* find_phase_Fe_fccbcc(double P, double T)
+EOS* find_phase_Fe_fccbcc(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
 
-  P /= 1E10;			// convert microbar to GPa
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
 	
-  if(T>575+18.7*P+0.213*pow(P,2)-0.000817*pow(P,3) && P<98.5) // Anzellini et al. 2013
+  if(T>575+18.7*P_GPa+0.213*pow(P_GPa,2)-0.000817*pow(P_GPa,3) && P_GPa<98.5) // Anzellini et al. 2013
   {
-    if(T<1991*pow((((P-5.2)/27.39)+1),1/2.38) && P<98.5)
-      if(T<-41.1*P+1120)	
+    if(T<1991*pow((((P_GPa-5.2)/27.39)+1),1/2.38) && P_GPa<98.5)
+      if(T<-41.1*P_GPa+1120)	
         return Fe_bcc;
       else
         return Fe_fcc;
@@ -293,8 +293,8 @@ EOS* find_phase_Fe_fccbcc(double P, double T)
   }
   else
   {
-    if(T<3712*pow((((P-98.5)/161.2)+1),1/1.72))
-      if(T<-61.2*P+1266)     // Dorogokupets et al. 2017
+    if(T<3712*pow((((P_GPa-98.5)/161.2)+1),1/1.72))
+      if(T<-61.2*P_GPa+1266)     // Dorogokupets et al. 2017
         return Fe_bcc;
       else	
         return Fe_hcp;
@@ -306,23 +306,24 @@ EOS* find_phase_Fe_fccbcc(double P, double T)
 // ========== Phase Diagrams for Mantle  ================
 // ---------------------------------
 // Si Default: Upper Mantle: Fo, Wds, Rwd, and liquid ; Lower Mantle: Brg, PPv
-EOS* find_phase_Si_default(double P, double T)
+EOS* find_phase_Si_default(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
-
-  P /= 1E10;			// convert microbar to GPa
-  if(P > 112.5 + 7E-3*T)      // Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
+  
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
+  
+  if(P_GPa > 112.5 + 7E-3*T)      // Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
     return Si_PPv_Sakai;
-  else if (T > 1830*pow(1+P/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
+  else if (T > 1830*pow(1+P_GPa/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
     return Si_Liquid_Wolf;
-  else if (P > 24.3+(-2.12E-4*T)+(-3.49E-7*pow(T, 2))) // Dorogokupets et al. 2015
+  else if (P_GPa > 24.3+(-2.12E-4*T)+(-3.49E-7*pow(T, 2))) // Dorogokupets et al. 2015
     return Si_Pv;
-  else if (P > 8.69+6.05E-3*T)
+  else if (P_GPa > 8.69+6.05E-3*T)
     return Rwd;
-  else if (P > 9.45+2.76E-3*T)
+  else if (P_GPa > 9.45+2.76E-3*T)
     return Wds;
   else
     return Fo;
@@ -330,23 +331,23 @@ EOS* find_phase_Si_default(double P, double T)
 
 // ---------------------------------
 // Si Mix
-EOS* find_phase_mant_mix(double P, double T)
+EOS* find_phase_mant_mix(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
-
-  P /= 1E10;			// convert microbar to GPa
-  if(P > 112.5 + 7E-3*T)      // Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
+  
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
+  if(P_GPa > 112.5 + 7E-3*T)      // Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
     return PPvMix;
-  else if (T > 1830*pow(1+P/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
+  else if (T > 1830*pow(1+P_GPa/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
     return Si_Liquid_Wolf;
-  else if (P > 24.3+(-2.12E-4*T)+(-3.49E-7*pow(T, 2))) // Dorogokupets et al. 2015
+  else if (P_GPa > 24.3+(-2.12E-4*T)+(-3.49E-7*pow(T, 2))) // Dorogokupets et al. 2015
     return BrgMix;
-  else if (P > 8.69+6.05E-3*T)
+  else if (P_GPa > 8.69+6.05E-3*T)
     return RwdMix;
-  else if (P > 9.45+2.76E-3*T)
+  else if (P_GPa > 9.45+2.76E-3*T)
     return WdsMix;
   else
   {
@@ -355,17 +356,17 @@ EOS* find_phase_mant_mix(double P, double T)
 }
 // ---------------------------------
 // Si Simplified: Brg, PPv, and liquid 
-EOS* find_phase_Si_simple(double P, double T)
+EOS* find_phase_Si_simple(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
 
-  P /= 1E10;			// convert microbar to GPa
-  if(P > 112.5 + 7E-3*T)	// Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
+  if(P_GPa > 112.5 + 7E-3*T)	// Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
     return Si_PPv_Sakai;
-  else if (T > 1830*pow(1+P/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
+  else if (T > 1830*pow(1+P_GPa/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
     return Si_Liquid_Wolf;
   else
     return Si_Pv;
@@ -373,17 +374,17 @@ EOS* find_phase_Si_simple(double P, double T)
 
 // ---------------------------------
 // PREM tabulated mantle
-EOS* find_phase_PREM(double P, double T)
+EOS* find_phase_PREM(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
 
-  P /= 1E10;			// convert microbar to GPa	
-  if(P > 3500)
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
+  if(P_GPa > 3500)
     return Si_Seager;
-  else if(P > 23.83)
+  else if(P_GPa > 23.83)
     return Si_BM2fit;
   else
     return Si_PREM;
@@ -391,15 +392,15 @@ EOS* find_phase_PREM(double P, double T)
 
 //-----------------------------------
 // Carbon Mantle
-EOS* find_phase_C_simple(double P, double T)
+EOS* find_phase_C_simple(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
     return NULL;
-  P /= 1E10;      // convert microbar to GPa
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
   
-  if (P>=970.679+(-1.52854E-2*T)+(-5.72152E-7*pow(T,2))) // Transition from Benedict et al (2018)
+  if (P_GPa>=970.679+(-1.52854E-2*T)+(-5.72152E-7*pow(T,2))) // Transition from Benedict et al (2018)
     return BC8;
-  else if (P>=1.949+(T+273)/400)  // Transition from Kennedy and Kennedy (1976)
+  else if (P_GPa>=1.949+(T+273)/400)  // Transition from Kennedy and Kennedy (1976)
     return Diam;
   else
     return Graph_Lowitzer;
@@ -407,18 +408,18 @@ EOS* find_phase_C_simple(double P, double T)
 
 //-----------------------------------
 // Silicon Carbide Mantle
-EOS* find_phase_SiC(double P, double T)
+EOS* find_phase_SiC(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
 
-  P /= 1E10;  // convert microbar to GPa
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
 
   double transition_pressure = 69.0 - 0.001 * (T - 300.0);
 
-  if (P < transition_pressure) 
+  if (P_GPa < transition_pressure) 
     return SiC_B3_Vinet;  // Low pressure zinc blende structure (Vinet EOS)
   else 
     return SiC_B1_Vinet;  // High pressure rock salt structure (Vinet EOS)
@@ -428,20 +429,20 @@ EOS* find_phase_SiC(double P, double T)
 
 // ---------------------------------
 // H2O Water/Ice/Gas boundaries 
-EOS* find_phase_water_default(double P, double T)
+EOS* find_phase_water_default(double P_cgs, double T)
 // input P in cgs
 {
-  P /= 1E10;			// convert microbar to GPa
-  if (P <= 0 || T <= 0)
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
+  if (P_GPa <= 0 || T <= 0)
   {
     return NULL;
   }
   //Below supercritical point, Liquid/Vapor/Ice Ih
-  if(P<0.022064) 
+  if(P_GPa<0.022064) 
   {
-    if(P<0.022064*exp((647.096/T)*(-7.85951783*(1-T/647.096)+1.84408259*pow(1-T/647.096,1.5)-11.7866497*pow(1-T/647.096,3)+22.6807411*pow(1-T/647.096,6)))||T>647.096) //Vapor Line Wagner & PruB 22
+    if(P_GPa<0.022064*exp((647.096/T)*(-7.85951783*(1-T/647.096)+1.84408259*pow(1-T/647.096,1.5)-11.7866497*pow(1-T/647.096,3)+22.6807411*pow(1-T/647.096,6)))||T>647.096) //Vapor Line Wagner & PruB 22
     {
-      if(P<1e-5)
+      if(P_GPa<1e-5)
         return vdW_H2O_iso;
       if(T<1000)  //use simplified EOS above 1000 K, IAPWS below
         return Water_Vap_IAPWS; //IAPWS-R6-95
@@ -450,7 +451,7 @@ EOS* find_phase_water_default(double P, double T)
       else
         return vdW_H2O_hi; //Van Der Walls Gas
     }
-    else if(T<-32.26706488*pow(P,3)-143.6159774*pow(P,2)-74.97759097*P+273.1683519) //Ice Ih melt line, SeaFreeze fitted polynomial
+    else if(T<-32.26706488*pow(P_GPa,3)-143.6159774*pow(P_GPa,2)-74.97759097*P_GPa+273.1683519) //Ice Ih melt line, SeaFreeze fitted polynomial
       return IceIh_SF;
     else if(T>490)
       return Water_IAPWS;
@@ -458,9 +459,9 @@ EOS* find_phase_water_default(double P, double T)
       return Water_SF;
   }
   // Ice Ih, III, Water Triple Point (includes Ice II region) SeaFreeze
-  else if( P < 0.207592 )		
+  else if( P_GPa < 0.207592 )		
   {
-    if(T > -32.26706488*pow(P,3)-143.6159774*pow(P,2)-74.97759097*P+273.1683519) //Ice Ih melt line, SeaFreeze fitted polynomial
+    if(T > -32.26706488*pow(P_GPa,3)-143.6159774*pow(P_GPa,2)-74.97759097*P_GPa+273.1683519) //Ice Ih melt line, SeaFreeze fitted polynomial
     {
       if(T<490)
         return Water_SF;
@@ -471,68 +472,68 @@ EOS* find_phase_water_default(double P, double T)
       else
         return vdW_H2O_hi;
     }
-    else if(P < 3.986300903e-09*pow(T,3)-1.789026292e-06*pow(T,2)+0.0009677787797*T+0.02631882383) // Ih to II transition, SeaFreeze fitted polynomial
+    else if(P_GPa < 3.986300903e-09*pow(T,3)-1.789026292e-06*pow(T,2)+0.0009677787797*T+0.02631882383) // Ih to II transition, SeaFreeze fitted polynomial
       return IceIh_SF;
     else
       return IceII_SF;
   }
   // III, V, Water Triple Point, (Includes Ice II reigon) SeaFreeze
-  else if( P < 0.350109 )		
+  else if( P_GPa < 0.350109 )		
   {
-    if(T > 99.49717929*pow(P,3)-158.5333434*pow(P,2)+100.0993404*P+236.281993) //Ice III Melt line, SeaFreeze fitted polynomial
+    if(T > 99.49717929*pow(P_GPa,3)-158.5333434*pow(P_GPa,2)+100.0993404*P_GPa+236.281993) //Ice III Melt line, SeaFreeze fitted polynomial
     {
       if(T>1280) //Use Brown <1280 K and Mazevet >1280K, there will be a density decrease if transitioning from Brown -> Mazevet
         return Water_sc_Mazevet;
       else
         return Water_Brown;
     }
-    else if(P > 3.986300903e-09*pow(T,3)-1.789026292e-06*pow(T,2)+0.0009677787797*T+0.02631882383 && T<10.6802119*pow(P,3)-60.79880497*pow(P,2)+108.5464607*P+218.0347735) //IceII region, SeaFreeze fitted polynomial
+    else if(P_GPa > 3.986300903e-09*pow(T,3)-1.789026292e-06*pow(T,2)+0.0009677787797*T+0.02631882383 && T<10.6802119*pow(P_GPa,3)-60.79880497*pow(P_GPa,2)+108.5464607*P_GPa+218.0347735) //IceII region, SeaFreeze fitted polynomial
       return IceII_SF;
-    else if(P < 1.153769845e-08*pow(T,3)-7.956399761e-06*pow(T,2)-0.001642755909*T+0.1140942871) //Small remaining IceIh region, SeaFreeze
+    else if(P_GPa < 1.153769845e-08*pow(T,3)-7.956399761e-06*pow(T,2)-0.001642755909*T+0.1140942871) //Small remaining IceIh region, SeaFreeze
       return IceIh_SF;
     else
       return IceIII_SF;
   }
   // V, VI, Water Triple Point SeaFreeze
-  else if(P < 0.634399)		
+  else if(P_GPa < 0.634399)		
   {
-    if(T > 47.24417282*pow(P,3)-120.4230091*pow(P,2)+143.9050041*P+218.5209061) //Ice V Melt line, SeaFreeze fitted polynomial
+    if(T > 47.24417282*pow(P_GPa,3)-120.4230091*pow(P_GPa,2)+143.9050041*P_GPa+218.5209061) //Ice V Melt line, SeaFreeze fitted polynomial
     {
       if(T>1280)
         return Water_sc_Mazevet; //there will be a density decrease if transitioning from Brown -> Mazevet 
       else
         return Water_Brown;
     }
-    else if(T<8.754511801*pow(P,3)-42.36539788*pow(P,2)-114.2410848*P+294.9938885 && T<10.6802119*pow(P,3)-60.79880497*pow(P,2)+108.5464607*P+218.0347735) //IceII region, SeaFreeze fitted polynomial
+    else if(T<8.754511801*pow(P_GPa,3)-42.36539788*pow(P_GPa,2)-114.2410848*P_GPa+294.9938885 && T<10.6802119*pow(P_GPa,3)-60.79880497*pow(P_GPa,2)+108.5464607*P_GPa+218.0347735) //IceII region, SeaFreeze fitted polynomial
       return IceII_SF;
-    else if(P< 2.669414392e-08*pow(T,3)-1.786325179e-05*pow(T,2)+0.003113786951*T+0.2759414249) //Small remaining IceIII, SeaFreeze 
+    else if(P_GPa< 2.669414392e-08*pow(T,3)-1.786325179e-05*pow(T,2)+0.003113786951*T+0.2759414249) //Small remaining IceIII, SeaFreeze 
       return IceIII_SF;
     else
       return IceV_SF;
   }
   // Water, Ice VI, Ice VII Triple Point, SeaFreeze
-  else if(P < 2.216)		
+  else if(P_GPa < 2.216)		
   {
-    if(T>5.711742978*pow(P,3)-39.67340784*pow(P,2)+125.6893825*P+208.5585936 || T>355) //Ice VI Melt line, SeaFreeze fitted polynomial
+    if(T>5.711742978*pow(P_GPa,3)-39.67340784*pow(P_GPa,2)+125.6893825*P_GPa+208.5585936 || T>355) //Ice VI Melt line, SeaFreeze fitted polynomial
     {
       if(T>1280)
         return Water_sc_Mazevet;
       else
         return Water_Brown;
     }
-    else if(P< -3.607661344e-08*pow(T,3)+1.032010899e-05*pow(T,2)-0.002592049235*T+1.070211316 && T<8.754511801*pow(P,3)-42.36539788*pow(P,2)-114.2410848*P+294.9938885) //Remaining IceII region
+    else if(P_GPa< -3.607661344e-08*pow(T,3)+1.032010899e-05*pow(T,2)-0.002592049235*T+1.070211316 && T<8.754511801*pow(P_GPa,3)-42.36539788*pow(P_GPa,2)-114.2410848*P_GPa+294.9938885) //Remaining IceII region
       return IceII_SF;
-    else if(P< -1.970275298e-08*pow(T,3)-1.858690183e-06*pow(T,2)+0.003737731993*T+0.1540994852) //Remaining IceV region
+    else if(P_GPa< -1.970275298e-08*pow(T,3)-1.858690183e-06*pow(T,2)+0.003737731993*T+0.1540994852) //Remaining IceV region
       return IceV_SF;
-    else if(T>-1.4699e5+6.10791e-6*P*1e9+8.1529e3*log(P*1e9)-8.8439e-1*sqrt(P*1e9)) // IceVI-VII transition AQUA
+    else if(T>-1.4699e5+6.10791e-6*P_GPa*1e9+8.1529e3*log(P_GPa*1e9)-8.8439e-1*sqrt(P_GPa*1e9)) // IceVI-VII transition AQUA
       return IceVI_SF;
     else
       return IceVII_Bezacier;
   }
   // Ice VII, X, Water Triple Point. Region of possible transitional Ice VII' reported in Grande not used in default
-  else if(P < 30.9)		
+  else if(P_GPa < 30.9)		
   {
-    if(P<2.17+1.253*(pow(T/355,3.0)-1) || T>1023)	// Ice VII Melting curve Datchi et al. 2000 Phys. Rev. B 61, 6535
+    if(P_GPa<2.17+1.253*(pow(T/355,3.0)-1) || T>1023)	// Ice VII Melting curve Datchi et al. 2000 Phys. Rev. B 61, 6535
     {
       if(T>1280)
         return Water_sc_Mazevet;
@@ -548,9 +549,9 @@ EOS* find_phase_water_default(double P, double T)
     }
   }
   // Phase diagram becomes more uncertain over 30.9 GPa
-  else if (P<700)			
+  else if (P_GPa<700)			
   {					// use Ice X if T<2250 and P<700 otherwise supercritical similiar to AQUA 
-    if(P<pow(10.0, exp(1.7818*pow(T/1634.6, 0.2408) + 0.8310*pow(T/1634.6, -1.0) - 0.1444*pow(T/1634.6, -3.0)) - 1.0)/1e9 || T>2250)	// Ice X Melting curve AQUA
+    if(P_GPa<pow(10.0, exp(1.7818*pow(T/1634.6, 0.2408) + 0.8310*pow(T/1634.6, -1.0) - 0.1444*pow(T/1634.6, -3.0)) - 1.0)/1e9 || T>2250)	// Ice X Melting curve AQUA
       return Water_sc_Mazevet;
     else
       return IceX;
@@ -562,21 +563,21 @@ EOS* find_phase_water_default(double P, double T)
 // ---------------------------------
 // H2O Water/Ice boundaries primarily from Dunaeva et al. 2010
 //Simplified phase diagram with major phases as used in Huang et al. 22
-EOS* find_phase_water_legacy(double P, double T)
+EOS* find_phase_water_legacy(double P_cgs, double T)
 // input P in cgs
 {
-  P /= 1E10;			// convert microbar to GPa
+  double P_GPa = P_cgs/1E10;			// convert microbar to GPa
   double Tt1, Tt2;
-  if (P <= 0 || T <= 0)
+  if (P_GPa <= 0 || T <= 0)
   {
     return NULL;
   }
-  if( P < 0.208566 )		// liquid water or Ice Ih (Dunaeva et al. 2010)
+  if( P_GPa < 0.208566 )		// liquid water or Ice Ih (Dunaeva et al. 2010)
   {
-    Tt1 = dunaeva_phase_curve(P, 273.0159, -0.0132, -0.1577, 0, 0.1516);
+    Tt1 = dunaeva_phase_curve(P_GPa, 273.0159, -0.0132, -0.1577, 0, 0.1516);
     if (!gsl_finite(Tt1))
     {
-      cout<<"Error: Can't find the phase of H2O at P="<<P<<" GPa and T="<<T<<" K."<<endl;
+      cout<<"Error: Can't find the phase of H2O at P="<<P_GPa<<" GPa and T="<<T<<" K."<<endl;
       return NULL;
     }
     if(T > Tt1)
@@ -585,16 +586,16 @@ EOS* find_phase_water_legacy(double P, double T)
       return IceIh;
   }
 
-  else if( P < 0.6324 )		// liquid water or Ice II, III, V
+  else if( P_GPa < 0.6324 )		// liquid water or Ice II, III, V
   {
-    Tt1 = dunaeva_phase_curve(P, 10.277, 0.0265, 50.1624, 0.5868, -4.3288);
-    Tt2 = dunaeva_phase_curve(P, 5.0321, -0.0004, 30.9482, 1.0018, 0);
+    Tt1 = dunaeva_phase_curve(P_GPa, 10.277, 0.0265, 50.1624, 0.5868, -4.3288);
+    Tt2 = dunaeva_phase_curve(P_GPa, 5.0321, -0.0004, 30.9482, 1.0018, 0);
     if (!gsl_finite(Tt1) || !gsl_finite(Tt2))
     {
-      cout<<"Error: Can't find the phase of H2O at P="<<P<<" GPa and T="<<T<<" K."<<endl;
+      cout<<"Error: Can't find the phase of H2O at P="<<P_GPa<<" GPa and T="<<T<<" K."<<endl;
       return NULL;
     }
-    if( (P < 0.3501 && T > Tt1) || (P >= 0.3501 && T > Tt2))
+    if( (P_GPa < 0.3501 && T > Tt1) || (P_GPa >= 0.3501 && T > Tt2))
       return Water;
     else
     {
@@ -602,13 +603,13 @@ EOS* find_phase_water_legacy(double P, double T)
     }
   }
   
-  else if(P < 2.216)		// liquid water or Ice VI, VII
+  else if(P_GPa < 2.216)		// liquid water or Ice VI, VII
   {
-    Tt1 = dunaeva_phase_curve(P, 4.2804, -0.0013, 21.8756, 1.0018, 1.0785);
-    Tt2 = dunaeva_phase_curve(P, -47.8507, 0, -389.006, 0.9932, 28.8539);
+    Tt1 = dunaeva_phase_curve(P_GPa, 4.2804, -0.0013, 21.8756, 1.0018, 1.0785);
+    Tt2 = dunaeva_phase_curve(P_GPa, -47.8507, 0, -389.006, 0.9932, 28.8539);
     if (!gsl_finite(Tt1) || !gsl_finite(Tt2))
     {
-      cout<<"Error: Can't find the phase of H2O at P="<<P<<" GPa and T="<<T<<" K."<<endl;
+      cout<<"Error: Can't find the phase of H2O at P="<<P_GPa<<" GPa and T="<<T<<" K."<<endl;
       return NULL;
     }
     if(T > Tt1)
@@ -620,14 +621,14 @@ EOS* find_phase_water_legacy(double P, double T)
       return IceVII_Bezacier;
   }
 
-  else if(P < 5.10)		// liquid water or Ice VII.
+  else if(P_GPa < 5.10)		// liquid water or Ice VII.
   {
     if(T>1200)			// A dummy melting curve to avoid ice VII EOS extrapolated to temperature too high.
       return Water_sc_Mazevet;
     else
       return IceVII_Bezacier;
   }
-  else if(P < 30.9)		// liquid water or Ice VII'.
+  else if(P_GPa < 30.9)		// liquid water or Ice VII'.
   {
     if(T>1200)			// A dummy melting curve to avoid Ice VII EOS extrapolated to temperature too high.
       return Water_sc_Mazevet;
@@ -635,7 +636,7 @@ EOS* find_phase_water_legacy(double P, double T)
       //return IceVIIp;         //Region of possible transitional Ice VII' reported in Grande not used in default
       return IceVII_Bezacier;
   }
-  else if (P<700)				// Phase diagram becomes more uncertain over 30.9 GPa
+  else if (P_GPa<700)				// Phase diagram becomes more uncertain over 30.9 GPa
   {						// use Ice X if T<2250 and P<700 otherwise supercritical similiar to AQUA 
     if(T<2250)
       return IceX;
@@ -649,27 +650,26 @@ EOS* find_phase_water_legacy(double P, double T)
 
 // ---------------------------------
 // AQUA Haldemann et al. 2020 Tabulated Ice, Liquid, Vapor, Supercritical
-EOS* find_phase_water_tabulated(double P, double T)
+EOS* find_phase_water_tabulated(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
 
-  P /= 1E10;			// convert microbar to GPa
   return H2O_AQUA;
 }
 
 // ========== Phase Diagram for Atmosphere  ================
 // ---------------------------------
 // Ideal Gas: Isothermal for P<100 bar, the radiative/convective boundary (Nixon & Madhusudhan 2021). Adiabatic ideal gas for P > 100 bar
-EOS* find_phase_gas_default(double P, double T)
+EOS* find_phase_gas_default(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
-  else if (P < 1E8)
+  else if (P_cgs < 1E8)
     return Gas_iso;
   else
     //return vdW_H2;
@@ -678,13 +678,13 @@ EOS* find_phase_gas_default(double P, double T)
 
 // ---------------------------------
 // H/He Gas: Isothermal ideal for P<100 bar, P>100 bar: tabulated real gas, Chabrier & Debras 2021 Y=0.275
-EOS* find_phase_HHe_tabulated(double P, double T)
+EOS* find_phase_HHe_tabulated(double P_cgs, double T)
 {
-  if (P <= 0 || T <= 0)
+  if (P_cgs <= 0 || T <= 0)
   {
     return NULL;
   }
-  else if (P < 1E8)
+  else if (P_cgs < 1E8)
     return Gas_iso;
   else
     return Gas_hhe;
@@ -705,59 +705,59 @@ PhaseDgm water2("water2", find_phase_water_legacy);
 PhaseDgm atm("atm", find_phase_gas_default); //Phase Diagrams for Atmosphere
 PhaseDgm atm1("atm1", find_phase_HHe_tabulated);
 
-EOS* find_phase(double m, double MC, double MM, double MW, double MG, double P, double T, bool inward)
+EOS* find_phase(double m, double MC, double MM, double MW, double MG, double P_cgs, double T, bool inward)
 // given the accumulated mass (in g), P (in cgs) and T, return the corresponding phase
 {
   if (inward)
   {
     if(m < MC*ME)			// iron core
-      return core.find_phase(P,T);
+      return core.find_phase(P_cgs,T);
 
     else if(m < (MM+MC)*ME)		// silicon mantle
-      return mant.find_phase(P,T);
+      return mant.find_phase(P_cgs,T);
 
     else if(m < (MM+MC+MW)*ME)		// hydrosphere
-      return water.find_phase(P,T);
+      return water.find_phase(P_cgs,T);
 
     else				// return the outermost existing layer 
     {
       if(MG > 1E-18)
-        return atm.find_phase(P,T);
+        return atm.find_phase(P_cgs,T);
       else if(MW > 1E-18)
-        return water.find_phase(P,T);
+        return water.find_phase(P_cgs,T);
       else if(MM > 1E-18)
-        return mant.find_phase(P,T);
+        return mant.find_phase(P_cgs,T);
       else
-        return core.find_phase(P,T);
+        return core.find_phase(P_cgs,T);
     }
   }
   else
   {
     if(m <= MC*ME)			// iron core
-      return core.find_phase(P,T);
+      return core.find_phase(P_cgs,T);
 
     else if(m <= (MM+MC)*ME)		// silicon mantle
-      return mant.find_phase(P,T);
+      return mant.find_phase(P_cgs,T);
 
     else if(m <= (MM+MC+MW)*ME)		// hydrosphere
-      return water.find_phase(P,T);
+      return water.find_phase(P_cgs,T);
 
     else				// return the outermost existing layer 
     {
       if(MG > 1E-18)
-        return atm.find_phase(P,T);
+        return atm.find_phase(P_cgs,T);
       else if(MW > 1E-18)
-        return water.find_phase(P,T);
+        return water.find_phase(P_cgs,T);
       else if(MM > 1E-18)
-        return mant.find_phase(P,T);
+        return mant.find_phase(P_cgs,T);
       else
-        return core.find_phase(P,T);
+        return core.find_phase(P_cgs,T);
     }
   }
 }  
 
 
-EOS* find_phase(double m, vector<PhaseDgm> &Comp, vector<double> M, double P, double T, bool inward)
+EOS* find_phase(double m, vector<PhaseDgm> &Comp, vector<double> M, double P_cgs, double T, bool inward)
 {
   if (Comp.size() != M.size())
   {
@@ -776,14 +776,14 @@ EOS* find_phase(double m, vector<PhaseDgm> &Comp, vector<double> M, double P, do
     if (inward)
     {
       if (m < mass_layers*ME)
-        return Comp[i].find_phase(P, T);
+        return Comp[i].find_phase(P_cgs, T);
     }
     else
       if (m <= mass_layers*ME)
-        return Comp[i].find_phase(P, T);
+        return Comp[i].find_phase(P_cgs, T);
   }
   // if nothing matched, return the outermost existing layer
-  return Comp.back().find_phase(P, T);
+  return Comp.back().find_phase(P_cgs, T);
 }
 
 
