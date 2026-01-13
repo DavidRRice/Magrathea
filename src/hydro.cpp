@@ -1730,7 +1730,7 @@ int fitting_error(const gsl_vector *x, void *params, gsl_vector *f)
   gsl_vector_set (f, 0, (Ri-Ro) / (Ri+Ro)); // set the mass different at the fitting point and try to normalize the difference
   gsl_vector_set (f, 1, (Pi-Po) / (Pi+Po));
   gsl_vector_set (f, 2, (Ti-To) / (Ti+To));
-  cout<<Rp<<' '<<Pc<<' '<<Tc<<' '<<Ri<<' '<<Ro<<' '<<Pi<<' '<<Po<<' '<<Ti<<' '<<To<<endl;
+
   return GSL_SUCCESS;
 }
 
