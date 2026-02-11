@@ -193,7 +193,7 @@ namespace Mixing {
       // Calculate (∂V/∂T)_P,i using the dVdT_P function
       // For 4-column tables (eqntype==7 && thermal_type==10), this directly uses table data
       // For other types, it uses: (m_i/rho_i^2) * (pPpT_rho,i / pPprho_T,i)
-      const double dVdT_P_i = phase->dVdT_P(P_GPa, T);
+      const double dVdT_P_i = phase->dVdT_P(P_GPa, T, rho_i);
 
       if (!gsl_finite(dVdT_P_i))
         return numeric_limits<double>::quiet_NaN();

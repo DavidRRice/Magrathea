@@ -300,7 +300,7 @@ EOS *Water = new EOS("Water (Valencia)", Water_array, sizeof(Water_array)/2/size
 // -----------------------------------
 // Water & Super Critical, Brown 2018, Fluid Phase Equilib., 463, 18, tabulated by SeaFreeze
 // DEFAULT
-EOS *Water_Brown = (new EOS("Water SC (Brown)", "./tabulated/water_Brown.txt"))->setmmol(18.01528);
+EOS *Water_Brown = (new EOS("Water Liq&SC (Brown)", "./tabulated/water_Brown.txt"))->setmmol(18.01528);
 
 // -----------------------------------
 // Supercritical water. Mazevet et al. 2019, A&A 621

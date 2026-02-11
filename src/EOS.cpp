@@ -1814,6 +1814,98 @@ double EOS::dVdT_P(double P_GPa, double T)
   }
 }
 
+double EOS::dVdT_P(double P_GPa, double T, double rho)
+// partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K, rho in g/cm^3
+{
+  if(eqntype == 7 && thermal_type == 0) // 2-column table: P, rho (no temperature dependence)
+  {
+    // pressure only depends on density, not temperature -> dV/dT = 0 at constant pressure
+    return 0.0;
+  }
+
+  if(!gsl_finite(mmol) || mmol <= 0.0)
+    return numeric_limits<double>::quiet_NaN();
+
+  if(!gsl_finite(rho) || rho <= 0.0)
+    return numeric_limits<double>::quiet_NaN();
+
+  if(eqntype == 7 && thermal_type == 10) // 4-column table: P, T, rho, dT/dP_S
+  {
+    // Same logic as your existing branch, but re-use caller-supplied rho instead of calling density()
+
+    double P_table = P_GPa;
+
+    // Clamp P to table bounds if needed
+    if(P_table < Ptable[0])
+      P_table = Ptable[0];
+    else if(P_table > Ptable[nline/tlen - 1])
+      P_table = Ptable[nline/tlen - 1];
+
+    // Find P grid index
+    size_t P_idx = gsl_interp_accel_find(accP, Ptable, nline/tlen, P_table);
+    if(P_idx >= (size_t)(nline/tlen - 1))
+      P_idx = nline/tlen - 2;
+
+    // Find T grid index
+    double T_clamped = T;
+    if(T < temptable[0])
+      T_clamped = temptable[0];
+    else if(T > temptable[tlen-1])
+      T_clamped = temptable[tlen-1];
+
+    size_t T_idx = gsl_interp_accel_find(accT, temptable, tlen, T_clamped);
+    if(T_idx >= (size_t)(tlen-1))
+      T_idx = tlen - 2;
+
+    // Get 4 grid points: (T_idx, P_idx), (T_idx, P_idx+1), (T_idx+1, P_idx), (T_idx+1, P_idx+1)
+    int idx00 = (int)T_idx + (int)P_idx * tlen;
+    int idx01 = (int)T_idx + (int)(P_idx+1) * tlen;
+    int idx10 = (int)(T_idx+1) + (int)P_idx * tlen;
+    int idx11 = (int)(T_idx+1) + (int)(P_idx+1) * tlen;
+
+    // Interpolate rho at constant P for two T grid points
+    // At T_idx:
+    double rho_T0_P0 = rhotable[idx00];
+    double rho_T0_P1 = rhotable[idx01];
+    double rho_T0;
+    if(fabs(Ptable[P_idx+1] - Ptable[P_idx]) < 1e-10)
+      rho_T0 = rho_T0_P0;
+    else
+      rho_T0 = rho_T0_P0 + (rho_T0_P1 - rho_T0_P0) * (P_table - Ptable[P_idx]) / (Ptable[P_idx+1] - Ptable[P_idx]);
+
+    // At T_idx+1:
+    double rho_T1_P0 = rhotable[idx10];
+    double rho_T1_P1 = rhotable[idx11];
+    double rho_T1;
+    if(fabs(Ptable[P_idx+1] - Ptable[P_idx]) < 1e-10)
+      rho_T1 = rho_T1_P0;
+    else
+      rho_T1 = rho_T1_P0 + (rho_T1_P1 - rho_T1_P0) * (P_table - Ptable[P_idx]) / (Ptable[P_idx+1] - Ptable[P_idx]);
+
+    // Compute drho/dT at constant P
+    double dT = temptable[T_idx+1] - temptable[T_idx];
+    if(fabs(dT) < 1e-10)
+      return numeric_limits<double>::quiet_NaN();
+
+    double drho_dT = (rho_T1 - rho_T0) / dT;
+
+    // Reuse caller rho:
+    // dV/dT = -mmol/rho^2 * drho/dT
+    return -mmol / (rho * rho) * drho_dT;
+  }
+
+  // Other EOS types:
+  // dV/dT = (mmol/rho^2) * (pPpT_rho / pPprho_T)
+  double pPpT_rho_val = pPpT_rho(rho, T);  // GPa/K
+  double pPprho_T_val = pPprho_T(rho, T);  // GPa/(g/cm^3)
+
+  if(!gsl_finite(pPpT_rho_val) || !gsl_finite(pPprho_T_val) || pPprho_T_val == 0.0)
+    return numeric_limits<double>::quiet_NaN();
+
+  return (mmol / (rho * rho)) * (pPpT_rho_val / pPprho_T_val);
+}
+
+
 double EOS::dTdm(double m, double r, double rho, double P_cgs, double T)
 // adiabatic temperature gradient in K/g, P in cgs
 {

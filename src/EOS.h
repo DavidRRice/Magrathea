@@ -54,7 +54,7 @@ struct EOS
   EOS*  setmmol(double m){ mmol = m; return this; }
   double getP0(){return P0;}
   double getT0(){return T0;}
-  double (*dTdP)(double P_cgs, double T, double &rho_guess); // return the temperature gradient at given pressure and temperature point. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient.  The dTdP should be in the unit of K/GPa.
+  double (*dTdP)(double P_cgs, double T, double &rho_guess); // return the temperature gradient at given pressure and temperature point. Pressure in cgs unit. rho_guess is only used as the initial guess of density solver. Shouldn't be used to calculate temperature gradient.  The dTdP should be in the unit of K/microbar.
   void DebyeT(double x, double &gamma, double &Theta);	   // return the Grueneisen parameter, Debye temperature or Einstein temperature according to Altshuler form.  If Theta0 is not available, a Debye temperature scaling factor is returned
   double entropy(double rho, double T); // Given the volume per mol and temperature, calculate the entropy over n*R, or P V^{7/5} / R for ideal gas.
   double pSpV_T(double V, double T);
@@ -67,6 +67,8 @@ struct EOS
   // partial P partial T at constant rho in GPa / K
   double dVdT_P(double P_GPa, double T);
   // partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K
+  double dVdT_P(double P_GPa, double T, double rho);
+  // partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K, and rho in g/cm^3
   double dTdm(double m, double r, double rho, double P_cgs, double T);
   // partial T partial enclosed mass, P in cgs
   double dTdP_S(double P_cgs, double T, double &rho_guess);
