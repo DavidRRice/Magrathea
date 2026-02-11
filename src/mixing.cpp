@@ -74,6 +74,51 @@ namespace Mixing {
     return 1 / V_mix; // g/cm^3
   }
 
+    // Overload: keep per-component rho guesses (same ordering as `components`)
+  double density_ideal_mixture(double P_cgs, double T,
+                               const vector<EOS*> &components,
+                               const vector<double> &x_in,
+                               vector<double> &rho_guess_phase,
+                               double rho_guess_init)
+  {
+    const size_t n = components.size();
+    if (n == 0 || x_in.size() != n)
+      return numeric_limits<double>::quiet_NaN();
+
+    vector<double> x = x_in;
+    normalize(x);
+
+    if (!gsl_finite(rho_guess_init) || rho_guess_init <= 0.0)
+      rho_guess_init = 1.0;
+
+    // Initialize / sanitize guess array
+    if (rho_guess_phase.size() != n)
+      rho_guess_phase.assign(n, rho_guess_init);
+    else
+      for (size_t i = 0; i < n; ++i)
+        if (!gsl_finite(rho_guess_phase[i]) || rho_guess_phase[i] <= 0.0)
+          rho_guess_phase[i] = rho_guess_init;
+
+    double V_mix = 0.0;
+
+    for (size_t i = 0; i < n; ++i)
+    {
+      EOS *phase = components[i];
+
+      const double rho_i = phase->density(P_cgs, T, rho_guess_phase[i]);
+      if (!gsl_finite(rho_i) || rho_i <= 0.0)
+        return numeric_limits<double>::quiet_NaN();
+
+      rho_guess_phase[i] = rho_i;   // <-- save for next call
+      V_mix += x[i] / rho_i;
+    }
+
+    if (V_mix <= 0.0)
+      return numeric_limits<double>::quiet_NaN();
+
+    return 1.0 / V_mix;
+  }
+
   // -------------------- General ideal mixture dT/dP|S --------------------
   //
   // Parallel addition of component gradients:
@@ -225,6 +270,76 @@ namespace Mixing {
     return grad_mix;
   }
 
+    // Overload: keep per-component rho guesses (same ordering as `components`)
+  double dTdP_S_ideal_mixture_full(double P_cgs, double T,
+                                   const vector<EOS*> &components,
+                                   const vector<double> &x_in,
+                                   vector<double> &rho_guess_phase,
+                                   double rho_guess_init)
+  {
+    const size_t n = components.size();
+    if (n == 0 || x_in.size() != n)
+      return numeric_limits<double>::quiet_NaN();
+
+    vector<double> x = x_in;
+    normalize(x);
+
+    if (!gsl_finite(rho_guess_init) || rho_guess_init <= 0.0)
+      rho_guess_init = 1.0;
+
+    if (rho_guess_phase.size() != n)
+      rho_guess_phase.assign(n, rho_guess_init);
+    else
+      for (size_t i = 0; i < n; ++i)
+        if (!gsl_finite(rho_guess_phase[i]) || rho_guess_phase[i] <= 0.0)
+          rho_guess_phase[i] = rho_guess_init;
+
+    const double P_GPa = P_cgs / 1E10;
+
+    double numerator   = 0.0;
+    double denominator = 0.0;
+    int n_thermal = 0;
+
+    for (size_t i = 0; i < n; ++i)
+    {
+      EOS *phase = components[i];
+
+      const int thermal_type = phase->getthermal();
+      if (thermal_type == 0)
+        continue;
+
+      double rho_i = phase->density(P_cgs, T, rho_guess_phase[i]);
+      if (!gsl_finite(rho_i) || rho_i <= 0.0)
+        return numeric_limits<double>::quiet_NaN();
+
+      rho_guess_phase[i] = rho_i;  // <-- save for next call
+
+      const double m_i = phase->getmmol();
+      if (!gsl_finite(m_i) || m_i <= 0.0)
+        return numeric_limits<double>::quiet_NaN();
+
+      // IMPORTANT: use the rho-taking overload so dVdT_P doesn't call density() again
+      const double dVdT_P_i = phase->dVdT_P(P_GPa, T, rho_i);
+      if (!gsl_finite(dVdT_P_i))
+        return numeric_limits<double>::quiet_NaN();
+
+      const double grad_i = phase->dTdP_S(P_cgs, T, rho_i); // K/GPa
+      if (!gsl_finite(grad_i) || grad_i <= 0.0)
+        return numeric_limits<double>::quiet_NaN();
+
+      numerator   += x[i] / m_i * dVdT_P_i;
+      denominator += x[i] / m_i * dVdT_P_i / grad_i;
+      ++n_thermal;
+    }
+
+    if (n_thermal == 0)
+      return 0.0;
+
+    if (denominator <= 0.0 || !gsl_finite(numerator) || !gsl_finite(denominator))
+      return numeric_limits<double>::quiet_NaN();
+
+    return numerator / denominator;
+  }
 
   // --- Generic wrapper generator for a given mixture NAME ---
   //
@@ -238,23 +353,27 @@ namespace Mixing {
   //   dTdP_NAME(P_cgs, T, rho_guess)
   //
   #define DEFINE_IDEAL_MIX_WRAPPERS(NAME)                                       \
-  double density_##NAME(double P_cgs, double T, double rho_guess)         \
-  {                                                                           \
-    return density_ideal_mixture(P_cgs, T, comps_##NAME, x_##NAME, rho_guess);          \
-  }                                                                           \
-                                                                              \
-  double dTdP_S_##NAME(double P_cgs, double T, double &rho_guess)         \
-  {                                                                           \
-    return dTdP_S_ideal_mixture_full(P_cgs, T, comps_##NAME, x_##NAME, rho_guess); \
-  }                                                                           \
-                                                                              \
-  double dTdP_##NAME(double P_cgs, double T, double &rho_guess)               \
-  {                                                                           \
-    const double grad_GPa = dTdP_S_ideal_mixture_full(P_cgs, T,                    \
-                                                 comps_##NAME, x_##NAME, rho_guess); \
-    if (!gsl_finite(grad_GPa))                                                \
-      return numeric_limits<double>::quiet_NaN();                        \
-    return grad_GPa;                                                 \
+  static vector<double> rho_guess_phase_##NAME;                                 \
+                                                                               \
+  double density_##NAME(double P_cgs, double T, double rho_guess)               \
+  {                                                                             \
+    return density_ideal_mixture(P_cgs, T, comps_##NAME, x_##NAME,              \
+                                rho_guess_phase_##NAME, rho_guess);            \
+  }                                                                             \
+                                                                               \
+  double dTdP_S_##NAME(double P_cgs, double T, double &rho_guess)               \
+  {                                                                             \
+    return dTdP_S_ideal_mixture_full(P_cgs, T, comps_##NAME, x_##NAME,          \
+                                    rho_guess_phase_##NAME, rho_guess);        \
+  }                                                                             \
+                                                                               \
+  double dTdP_##NAME(double P_cgs, double T, double &rho_guess)                 \
+  {                                                                             \
+    const double grad_GPa = dTdP_S_ideal_mixture_full(P_cgs, T,                 \
+                                comps_##NAME, x_##NAME, rho_guess_phase_##NAME, rho_guess); \
+    if (!gsl_finite(grad_GPa))                                                  \
+      return numeric_limits<double>::quiet_NaN();                               \
+    return grad_GPa;                                                           \
   }
 
   bool mantle_wFeO_from_MgNumber(
