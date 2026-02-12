@@ -182,13 +182,13 @@ EOS *Mw = new EOS("Magnesiowustite (Sotin)", Mw_array, sizeof(Mw_array)/2/sizeof
 
 double MgO_array[][2] = {{0,3}, {1,10.970}, {2,120.76}, {3,4.803}, {5,mMg+mO}, {7,447.906}, {8,1.755}, {9,-0.530}, {10,-0.07579}, {14,2}, {15,20}};
 
-EOS *MgO_raw = new EOS("MgO (Musella)", MgO_array, sizeof(MgO_array)/2/sizeof(MgO_array[0][0]));
+EOS *MgO = new EOS("MgO (Musella)", MgO_array, sizeof(MgO_array)/2/sizeof(MgO_array[0][0]));
 
 // -----------------------------------
 // B1 FeO, Wüstite (wu), Fischer et al. 2011, Earth and Planetary Science letters
 double B1FeO_array[][2] = {{0,0}, {1,12.256}, {2,149.4}, {3,3.6}, {5,mFe+mO}, {7,417}, {8,1.41}, {9,0.5}, {10,0}, {14,2}};
 
-EOS *B1FeO_raw = new EOS("B1FeO (Fischer)", B1FeO_array, sizeof(B1FeO_array)/2/sizeof(B1FeO_array[0][0]));
+EOS *B1FeO = new EOS("B1FeO (Fischer)", B1FeO_array, sizeof(B1FeO_array)/2/sizeof(B1FeO_array[0][0]));
 
 // -----------------------------------
 // B8 FeO, Wüstite (wu), Fischer et al. 2011, Earth and Planetary Science letters
@@ -795,7 +795,7 @@ EOS *Fe_Perovskite = new EOS("Fe-Perovskite (Stixrude)", Fe_Perovskite_array, si
 
 double Ca_Perovskite_array[][2] = {{0,0}, {1,27.45}, {2,236.0}, {3,3.9}, {5,mCa+mSi+3*mO}, {7,796}, {8,1.89}, {9,0.9}, {10,0}, {14,5}};
 
-EOS *Ca_Perovskite_raw = new EOS("Ca-Perovskite (Stixrude)", Ca_Perovskite_array, sizeof(Ca_Perovskite_array)/2/sizeof(Ca_Perovskite_array[0][0]));
+EOS *Ca_Perovskite = new EOS("Ca-Perovskite (Stixrude)", Ca_Perovskite_array, sizeof(Ca_Perovskite_array)/2/sizeof(Ca_Perovskite_array[0][0]));
 
 // -----------------------------------
 // Al-Perovskite (rh2o3), AlAlO3, Stixrude & Lithgow-Bertelloni 2011, Vinet EOS
@@ -898,158 +898,6 @@ struct InitMantleMixes {
   }
 } _initMantleMixes;
 
-static const double MgO_MUSELLA_PMAX_GPA = 500.0;   // ceiling: above this we clamp
-static const double MgO_MUSELLA_RHO_FALLBACK = 12.0; // g/cm^3: "don’t crash" value
-static bool MgO_Musella_warned = false;
-
-static double density_MgO_Musella_safe(double P_cgs, double T, double rho_guess)
-{
-  double P_GPa = P_cgs / 1.0e10;
-
-  // Clamp pressure to avoid asking EOS to solve in crazy regimes
-  if (P_GPa > MgO_MUSELLA_PMAX_GPA)
-  {
-    if (verbose && !MgO_Musella_warned)
-    {
-      cout << "Warning: MgO (Musella) requested at P=" << P_GPa
-           << " GPa. Clamping to " << MgO_MUSELLA_PMAX_GPA
-           << " GPa for numerical stability (results above clamp not physical)." << endl;
-      MgO_Musella_warned = true;
-    }
-    P_cgs = MgO_MUSELLA_PMAX_GPA * 1.0e10;
-  }
-
-  // Try the real EOS
-  double rho = MgO_raw->density(P_cgs, T, rho_guess);
-
-  // If it still fails, return something finite so hydro doesn’t abort
-  if (!gsl_finite(rho) || rho <= 0.0)
-  {
-    if (verbose && !MgO_Musella_warned)
-    {
-      cout << "Warning: MgO (Musella) density solver failed even after clamp; "
-              "returning fallback density." << endl;
-      MgO_Musella_warned = true;
-    }
-
-    if (gsl_finite(rho_guess) && rho_guess > 0.0)
-      return rho_guess;                 // best “continuation” guess
-    else
-      return MgO_MUSELLA_RHO_FALLBACK;  // last resort
-  }
-
-  return rho;
-}
-
-
-EOS *MgO = []() {
-  EOS *e = new EOS("MgO (Musella, safe)", MgO_array,
-                   sizeof(MgO_array)/2/sizeof(MgO_array[0][0]));
-  e->modify_extern_density(density_MgO_Musella_safe);
-  return e;
-}();
-
-static const double FeO_B1_PMAX_GPA = 500.0;   // ceiling: above this we clamp
-static const double FeO_B1_RHO_FALLBACK = 12.0; // g/cm^3: "don’t crash" value
-static bool FeO_B1_warned = false;
-
-static double density_FeO_B1_safe(double P_cgs, double T, double rho_guess)
-{
-  double P_GPa = P_cgs / 1.0e10;
-
-  // Clamp pressure to avoid asking EOS to solve in crazy regimes
-  if (P_GPa > FeO_B1_PMAX_GPA)
-  {
-    if (verbose && !FeO_B1_warned)
-    {
-      cout << "Warning: FeO B1 requested at P=" << P_GPa
-           << " GPa. Clamping to " << FeO_B1_PMAX_GPA
-           << " GPa for numerical stability (results above clamp not physical)." << endl;
-      FeO_B1_warned = true;
-    }
-    P_cgs = FeO_B1_PMAX_GPA * 1.0e10;
-  }
-
-  // Try the real EOS
-  double rho = B1FeO_raw->density(P_cgs, T, rho_guess);
-
-  // If it still fails, return something finite so hydro doesn’t abort
-  if (!gsl_finite(rho) || rho <= 0.0)
-  {
-    if (verbose && !FeO_B1_warned)
-    {
-      cout << "Warning: FeO B1 density solver failed even after clamp; "
-              "returning fallback density." << endl;
-      FeO_B1_warned = true;
-    }
-
-    if (gsl_finite(rho_guess) && rho_guess > 0.0)
-      return rho_guess;                 // best “continuation” guess
-    else
-      return FeO_B1_RHO_FALLBACK;  // last resort
-  }
-
-  return rho;
-}
-
-
-EOS *B1FeO = []() {
-  EOS *e = new EOS("FeO (Fischer)", B1FeO_array,
-                   sizeof(B1FeO_array)/2/sizeof(B1FeO_array[0][0]));
-  e->modify_extern_density(density_FeO_B1_safe);
-  return e;
-}();
-
-static const double Ca_Perovskite_PMAX_GPA = 500.0;   // ceiling: above this we clamp
-static const double Ca_Perovskite_RHO_FALLBACK = 12.0; // g/cm^3: "don’t crash" value
-static bool Ca_Perovskite_warned = false;
-
-static double density_Ca_Perovskite_safe(double P_cgs, double T, double rho_guess)
-{
-  double P_GPa = P_cgs / 1.0e10;
-
-  // Clamp pressure to avoid asking EOS to solve in crazy regimes
-  if (P_GPa > Ca_Perovskite_PMAX_GPA)
-  {
-    if (verbose && !Ca_Perovskite_warned)
-    {
-      cout << "Warning: Ca_Perovskite requested at P=" << P_GPa
-           << " GPa. Clamping to " << Ca_Perovskite_PMAX_GPA
-           << " GPa for numerical stability (results above clamp not physical)." << endl;
-      Ca_Perovskite_warned = true;
-    }
-    P_cgs = Ca_Perovskite_PMAX_GPA * 1.0e10;
-  }
-
-  // Try the real EOS
-  double rho = Ca_Perovskite_raw->density(P_cgs, T, rho_guess);
-
-  // If it still fails, return something finite so hydro doesn’t abort
-  if (!gsl_finite(rho) || rho <= 0.0)
-  {
-    if (verbose && !Ca_Perovskite_warned)
-    {
-      cout << "Warning: FeO B1 density solver failed even after clamp; "
-              "returning fallback density." << endl;
-      Ca_Perovskite_warned = true;
-    }
-
-    if (gsl_finite(rho_guess) && rho_guess > 0.0)
-      return rho_guess;                 // best “continuation” guess
-    else
-      return Ca_Perovskite_RHO_FALLBACK;  // last resort
-  }
-
-  return rho;
-}
-
-
-EOS *Ca_Perovskite = []() {
-  EOS *e = new EOS("Ca Perovskite (Stixrude)", Ca_Perovskite_array,
-                   sizeof(Ca_Perovskite_array)/2/sizeof(Ca_Perovskite_array[0][0]));
-  e->modify_extern_density(density_Ca_Perovskite_safe);
-  return e;
-}();
 
 // ============== An example on the format of dTdP function ==============
 double dTdP_gas(double P_cgs, double T)

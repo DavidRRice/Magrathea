@@ -68,8 +68,12 @@ int main(int argc, char* argv[])
   double FeMg = -1.0;
   double Mp_total=0.0;
   double mantle_wFeO=-1.0;
-  double wt_fract_S_core=0.0;
-  double wt_fract_Ni_core=0.0;
+  double wS_core=0.0;
+  double wO_core=0.0;
+  double wH_core=0.0;
+  double wC_core=0.0;
+  double wSi_core=0.0;
+  double wNi_core=0.0;
   double RCMF_in=-1.0;
   double mantle_Mg_number = -1.0;
 
@@ -204,8 +208,12 @@ int main(int argc, char* argv[])
       mantle_wFeO = options.GetOptionDouble("mantle_wFeO", -1.0);
       mantle_Mg_number= options.GetOptionDouble("mantle_Mg_num",-1.0);
       RCMF_in     = options.GetOptionDouble("RCMF",        -1.0);
-      wt_fract_S_core = options.GetOptionDouble("wt_fract_S_core");
-      wt_fract_Ni_core = options.GetOptionDouble("wt_fract_Ni_core");
+      wS_core = options.GetOptionDouble("wt_fract_S_core");
+      wO_core = options.GetOptionDouble("wt_fract_O_core");
+      wH_core = options.GetOptionDouble("wt_fract_H_core");
+      wC_core = options.GetOptionDouble("wt_fract_C_core");
+      wSi_core = options.GetOptionDouble("wt_fract_Si_core");
+      wNi_core = options.GetOptionDouble("wt_fract_Ni_core");
       Tgap[0]=options.GetOptionDouble("temp_jump_3"); 
       Tgap[1]=options.GetOptionDouble("temp_jump_2");
       Tgap[2]=options.GetOptionDouble("temp_jump_1");
@@ -429,7 +437,8 @@ int main(int argc, char* argv[])
 
     string cmf_note;
     if (!Mixing::compute_mode9_core_mantle(CaMg, SiMg, AlMg,
-                                         FeMg, mantle_wFeO_local, RCMF, wt_fract_S_core, wt_fract_Ni_core,
+                                         FeMg, mantle_wFeO_local, RCMF, wS_core, wO_core,
+                                         wH_core, wC_core, wSi_core, wNi_core,
                                          FeMg_mantle, cmf_note)) {
     cout << "ERROR: " << cmf_note << endl;
     return 1;      
@@ -437,8 +446,9 @@ int main(int argc, char* argv[])
     if (!cmf_note.empty()) cout << "CMF note: " << cmf_note << endl;
 
     
-    // Effective molar mass matching a *mass fraction* of S in the core
-    const double denom = (1.0 - wt_fract_S_core)/mFe + (wt_fract_S_core)/mS;
+    // Effective molar mass matching the mass fraction of lighter elements in the core
+    const double wFe=1.0-wS_core-wO_core-wH_core-wC_core-wSi_core;
+    const double denom = wFe/mFe + wS_core/mS + wO_core/mO + wH_core/mH + wC_core/mC + wSi_core/mSi;
     const double mu_eff_core = 1.0 / denom;
 
     // Apply to the Fe core EOS phases you actually use
@@ -506,9 +516,7 @@ int main(int argc, char* argv[])
   delete Si_Liquid_Wolf;
   delete Si_Dummy;
   delete MgO;
-  delete MgO_raw;
   delete B1FeO;
-  delete B1FeO_raw;
   delete B8FeO;
   delete Fo;
   delete Wds;
@@ -594,7 +602,6 @@ int main(int argc, char* argv[])
   delete Fe_Post_Perovskite;
   delete Fe_Perovskite;
   delete Ca_Perovskite;
-  delete Ca_Perovskite_raw;
   delete Al_Perovskite;
   delete Al_Post_Perovskite;
   delete HP_Clinoferrosilite;

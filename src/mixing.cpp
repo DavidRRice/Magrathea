@@ -433,6 +433,10 @@ namespace Mixing {
     double &mantle_wFeO_io,     // <0 => auto
     double &RCMF_io,            // <0 => auto
     double wt_fract_S_core,
+    double wt_fract_O_core,
+    double wt_fract_H_core,
+    double wt_fract_C_core,
+    double wt_fract_Si_core,
     double wt_fract_Ni_core,
     double &FeMg_mantle_out,
     std::string &note_or_error)
@@ -448,10 +452,14 @@ namespace Mixing {
   // ---- validate fixed core fractions ----
   if (wt_fract_S_core < 0.0)  wt_fract_S_core = 0.0;
   if (wt_fract_Ni_core < 0.0) wt_fract_Ni_core = 0.0;
+  if (wt_fract_O_core < 0.0) wt_fract_O_core = 0.0;
+  if (wt_fract_H_core < 0.0) wt_fract_H_core = 0.0;
+  if (wt_fract_C_core < 0.0) wt_fract_C_core = 0.0;
+  if (wt_fract_Si_core < 0.0) wt_fract_Si_core = 0.0;
 
-  const double w_nonFe = wt_fract_S_core + wt_fract_Ni_core;
+  const double w_nonFe = wt_fract_S_core +wt_fract_O_core +wt_fract_H_core +wt_fract_C_core +wt_fract_Si_core +wt_fract_Ni_core;
   if (w_nonFe >= 1.0 - EPS) {
-    msg << "Core non-Fe mass fraction (S+Ni)=" << w_nonFe << " must be < 1.";
+    msg << "Core non-Fe mass fraction =" << w_nonFe << " must be < 1.";
     note_or_error = msg.str();
     return false;
   }
@@ -560,7 +568,7 @@ namespace Mixing {
       << ", mantle_wFeO=" << mantle_wFeO_io
       << ", RCMF=" << RCMF_io
       << ", FeMg_mantle=" << FeMg_mantle_out
-      << ", core non-Fe (S+Ni)=" << w_nonFe << ".";
+      << ", core non-Fe=" << w_nonFe << ".";
   note_or_error = msg.str();
   return true;
   }
@@ -619,18 +627,26 @@ bool compute_upper_mantle_fractions(double CaMg,
     double n_Py  = X_Mg * n_Gt;
     double n_Alm = X_Fe * n_Gt;
 
-    double Ntot = n_Fo + n_Fa + n_En + n_Fs + n_Di + n_Hd + n_Py + n_Alm;
 
-    if (Ntot <= 0.0) return false;
+    // Convert formula-unit moles -> mass fractions using molar masses (g/mol)
+    const double n[8] = { n_Fo, n_Fa, n_En, n_Fs, n_Di, n_Hd, n_Py, n_Alm };
 
-    upper_out[0] = n_Fo  / Ntot;
-    upper_out[1] = n_Fa  / Ntot;
-    upper_out[2] = n_En  / Ntot;
-    upper_out[3] = n_Fs  / Ntot;
-    upper_out[4] = n_Di  / Ntot;
-    upper_out[5] = n_Hd  / Ntot;
-    upper_out[6] = n_Py  / Ntot;
-    upper_out[7] = n_Alm / Ntot;
+    const double M[8] = {
+      Fo->getmmol(),
+      Fayalite->getmmol(),
+      Enstatite->getmmol(),
+      Ferrosilite->getmmol(),
+      Diopside->getmmol(),
+      Hedenbergite->getmmol(),
+      Pyrope->getmmol(),
+      Almandine->getmmol()
+    };
+
+    double mtot = 0.0;
+    for (int i = 0; i < 8; ++i) mtot += n[i] * M[i];
+    if (mtot <= 0.0) return false;
+
+    for (int i = 0; i < 8; ++i) upper_out[i] = (n[i] * M[i]) / mtot;
 
     return true;
 }
@@ -689,17 +705,24 @@ bool compute_middle_mantle_fractions(double CaMg,
     double n_Gross  = n_Grs;
     double n_MgMaj  = n_Mj;
 
-    double Ntot = n_Wds + n_FeWds + n_Py + n_Alm + n_Gross + n_MgMaj;
-    if (Ntot <= 0.0) return false;
+    // Convert formula-unit moles -> mass fractions using EOS molar masses (g/mol)
+    const double n[6] = { n_Wds, n_FeWds, n_Py, n_Alm, n_Gross, n_MgMaj };
+    const double M[6] = {
+      Wds->getmmol(),
+      Fe_Wadsleyite->getmmol(),
+      Pyrope->getmmol(),
+      Almandine->getmmol(),
+      Grossular->getmmol(),
+      Mg_Majorite->getmmol()
+    };
 
-    middle_out[0] = n_Wds   / Ntot;
-    middle_out[1] = n_FeWds / Ntot;
-    middle_out[2] = n_Py    / Ntot;
-    middle_out[3] = n_Alm   / Ntot;
-    middle_out[4] = n_Gross / Ntot;
-    middle_out[5] = n_MgMaj / Ntot;
+double mtot = 0.0;
+for (int i = 0; i < 6; ++i) mtot += n[i] * M[i];
+if (mtot <= 0.0) return false;
 
-    return true;
+for (int i = 0; i < 6; ++i) middle_out[i] = (n[i] * M[i]) / mtot;
+
+return true;
 }
 
 /*
@@ -745,15 +768,22 @@ bool compute_lower_mantle_fractions(double CaMg,
     double n_FpMg = X_Mg * n_Fp;
     double n_FpFe = X_Fe * n_Fp;
 
-    double Ntot = n_PvMg + n_PvFe + n_FpMg + n_FpFe + n_CaPv + n_AlPv;
-    if (Ntot <= 0.0) return false;
+    // Convert formula-unit moles -> mass fractions using EOS molar masses (g/mol)
+    const double n[6] = { n_PvMg, n_PvFe, n_FpMg, n_FpFe, n_CaPv, n_AlPv };
+    const double M[6] = {
+      Si_Pv->getmmol(),         // MgSiO3
+      Fe_Perovskite->getmmol(), // FeSiO3
+      MgO->getmmol(),           // MgO
+      B1FeO->getmmol(),         // FeO
+      Ca_Perovskite->getmmol(), // CaSiO3
+      Al_Perovskite->getmmol()  // Al2O3 (your "AlAlO3")
+    };
 
-    lower_out[0] = n_PvMg / Ntot;
-    lower_out[1] = n_PvFe / Ntot;
-    lower_out[2] = n_FpMg / Ntot;
-    lower_out[3] = n_FpFe / Ntot;
-    lower_out[4] = n_CaPv / Ntot;
-    lower_out[5] = n_AlPv / Ntot;
+    double mtot = 0.0;
+    for (int i = 0; i < 6; ++i) mtot += n[i] * M[i];
+    if (mtot <= 0.0) return false;
+
+    for (int i = 0; i < 6; ++i) lower_out[i] = (n[i] * M[i]) / mtot;
 
     return true;
 }

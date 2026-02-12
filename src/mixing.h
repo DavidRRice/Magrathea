@@ -35,7 +35,7 @@ namespace Mixing {
 
   // ---------- Wrappers for Mixtures ----------
   // one macro to declare the triple definitions for any NAME
-  // Density(P,T,rho_guess) in cgs units for Fo+Fay 50/50
+  // Density(P,T,rho_guess) in cgs 
   // dT/dP (K/microbar) for Fo+Fay 50/50, for use in EOS::dTdm
   // Mixture dT/dP|S in K/GPa
   #define DECLARE_IDEAL_MIX(NAME)                                      \
@@ -43,6 +43,7 @@ namespace Mixing {
     double dTdP_##NAME(double P_cgs, double T, double &rho_guess);     \
     double dTdP_S_##NAME(double P_cgs, double T, double &rho_guess);
 
+  //Declaration of Mixtures in Library
   DECLARE_IDEAL_MIX(FoFay)
   DECLARE_IDEAL_MIX(OlMix)
   DECLARE_IDEAL_MIX(WdsMix)
@@ -67,25 +68,29 @@ namespace Mixing {
     double &mantle_wFeO_io,     // <0 => auto
     double &RCMF_io,            // <0 => auto
     double wt_fract_S_core,
+    double wt_fract_O_core,
+    double wt_fract_H_core,
+    double wt_fract_C_core,
+    double wt_fract_Si_core,
     double wt_fract_Ni_core,
     double &FeMg_mantle_out,
     std::string &note_or_error);
 
-  // Upper mantle (olivine region) fractions
+  // Upper mantle (olivine region) mass fractions
   bool compute_upper_mantle_fractions(double CaMg,
                                       double SiMg,
                                       double AlMg,
                                       double FeMg,
                                       vector<double> &upper_out);
 
-  // Middle mantle (wadsleyite / ringwoodite region) fractions
+  // Middle mantle (wadsleyite / ringwoodite region) mass fractions
   bool compute_middle_mantle_fractions(double CaMg,
                                       double SiMg,
                                       double AlMg,
                                       double FeMg,
                                       vector<double> &middle_out);
 
-  // Lower mantle (perovskite / post-perovskite region) fractions
+  // Lower mantle (perovskite / post-perovskite region) mass fractions
   bool compute_lower_mantle_fractions(double CaMg,
                                       double SiMg,
                                       double AlMg,
