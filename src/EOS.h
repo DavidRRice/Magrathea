@@ -81,7 +81,7 @@ struct EOS
   double gamma0S (double V);
   // Grueneisen parameter along the reference adiabat (eq A.3), take volume in cm^3 / mol
   double bV(double V);
-  // thermal coefficients b(V) (Eq.10) in erg/mol, take volume in cm^3 / mol
+  // thermal coefficients b(V) (Eq.10 in Wolf&Bower 2018) in erg/mol, take volume in cm^3 / mol
   double bVp(double V);
   // derivative of b(V) (Eq. B.2) erg/cm^3 (microbar), take volume in cm^3 / mol
   double TOS(double V);

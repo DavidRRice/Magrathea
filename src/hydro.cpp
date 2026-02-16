@@ -336,7 +336,7 @@ hydro::hydro(double Rp, vector<PhaseDgm> &Comp_in, vector<double> Mass_Comp, vec
       }
 
       new_Phase = Comp[i].find_phase(y[1], y[2]);
-      rhot = new_Phase -> density(P[0], y[2], rhot);
+      rhot = new_Phase -> density(y[1], y[2], rhot);
 
       if (!new_Phase)
       {

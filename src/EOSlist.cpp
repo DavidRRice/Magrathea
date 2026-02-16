@@ -1216,17 +1216,31 @@ double dTdP_S_H2O_of_rho(double rho, double T)
   return dT_dP_S;
 }
 
+static double last_P_H2OSC = -1;
+static double last_T_H2OSC = -1;
+static double last_rho_H2OSC = -1;
+
 double H2OSC(double P_cgs, double T, double rho_guess)
 // P in cgs (microbar), same as density_solver expects
 {
   if(!(rho_guess>0.5 && rho_guess<20))
     rho_guess = max(1 + 0.5*log(P_cgs/5E10),0.1);  // P/5E10 converts microbar to GPa for the log
-  return density_solver(P_cgs,T,PH2OSC,rho_guess);
+  double rho = density_solver(P_cgs,T,PH2OSC,rho_guess);
+  if (gsl_finite(rho) && rho > 0.0) {
+    last_P_H2OSC = P_cgs;
+    last_T_H2OSC = T;
+    last_rho_H2OSC = rho;
+  }
+  return rho;
 }
 
 double dTdP_S_H2OSC(double P_cgs, double T, double &rho_guess)
 {
-  rho_guess = density_solver(P_cgs,T,PH2OSC,rho_guess);
+  if (P_cgs == last_P_H2OSC && T == last_T_H2OSC
+      && gsl_finite(last_rho_H2OSC) && last_rho_H2OSC > 0.0)
+    rho_guess = last_rho_H2OSC;    // reuse density from preceding H2OSC call
+  else
+    rho_guess = density_solver(P_cgs,T,PH2OSC,rho_guess);
   return dTdP_S_H2O_of_rho(rho_guess, T);
 }
 	

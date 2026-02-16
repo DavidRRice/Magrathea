@@ -275,7 +275,8 @@ namespace Mixing {
                                    const vector<EOS*> &components,
                                    const vector<double> &x_in,
                                    vector<double> &rho_guess_phase,
-                                   double rho_guess_init)
+                                   double rho_guess_init,
+                                   bool use_cached_rho = false)
   {
     const size_t n = components.size();
     if (n == 0 || x_in.size() != n)
@@ -308,11 +309,18 @@ namespace Mixing {
       if (thermal_type == 0)
         continue;
 
-      double rho_i = phase->density(P_cgs, T, rho_guess_phase[i]);
-      if (!gsl_finite(rho_i) || rho_i <= 0.0)
-        return numeric_limits<double>::quiet_NaN();
-
-      rho_guess_phase[i] = rho_i;  // <-- save for next call
+      double rho_i;
+      if (use_cached_rho && gsl_finite(rho_guess_phase[i]) && rho_guess_phase[i] > 0.0)
+      {
+        rho_i = rho_guess_phase[i];   // reuse density from preceding density_NAME call
+      }
+      else
+      {
+        rho_i = phase->density(P_cgs, T, rho_guess_phase[i]);
+        if (!gsl_finite(rho_i) || rho_i <= 0.0)
+          return numeric_limits<double>::quiet_NaN();
+        rho_guess_phase[i] = rho_i;
+      }
 
       const double m_i = phase->getmmol();
       if (!gsl_finite(m_i) || m_i <= 0.0)
@@ -354,23 +362,33 @@ namespace Mixing {
   //
   #define DEFINE_IDEAL_MIX_WRAPPERS(NAME)                                       \
   static vector<double> rho_guess_phase_##NAME;                                 \
+  static double last_P_##NAME = -1;                                             \
+  static double last_T_##NAME = -1;                                             \
                                                                                \
   double density_##NAME(double P_cgs, double T, double rho_guess)               \
   {                                                                             \
-    return density_ideal_mixture(P_cgs, T, comps_##NAME, x_##NAME,              \
-                                rho_guess_phase_##NAME, rho_guess);            \
+    double result = density_ideal_mixture(P_cgs, T, comps_##NAME, x_##NAME,     \
+                                         rho_guess_phase_##NAME, rho_guess);   \
+    if (gsl_finite(result)) {                                                   \
+      last_P_##NAME = P_cgs;                                                    \
+      last_T_##NAME = T;                                                        \
+    }                                                                           \
+    return result;                                                              \
   }                                                                             \
                                                                                \
   double dTdP_S_##NAME(double P_cgs, double T, double &rho_guess)               \
   {                                                                             \
+    bool cached = (P_cgs == last_P_##NAME && T == last_T_##NAME);               \
     return dTdP_S_ideal_mixture_full(P_cgs, T, comps_##NAME, x_##NAME,          \
-                                    rho_guess_phase_##NAME, rho_guess);        \
+                                    rho_guess_phase_##NAME, rho_guess, cached);\
   }                                                                             \
                                                                                \
   double dTdP_##NAME(double P_cgs, double T, double &rho_guess)                 \
   {                                                                             \
+    bool cached = (P_cgs == last_P_##NAME && T == last_T_##NAME);               \
     const double grad_GPa = dTdP_S_ideal_mixture_full(P_cgs, T,                 \
-                                comps_##NAME, x_##NAME, rho_guess_phase_##NAME, rho_guess); \
+                                comps_##NAME, x_##NAME, rho_guess_phase_##NAME, \
+                                rho_guess, cached);                            \
     if (!gsl_finite(grad_GPa))                                                  \
       return numeric_limits<double>::quiet_NaN();                               \
     return grad_GPa;                                                           \
