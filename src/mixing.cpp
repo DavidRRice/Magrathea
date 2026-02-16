@@ -901,8 +901,8 @@ bool compute_all_mantle_fractions(double CaMg,
 
   // ---- knobs you can tune: molar fraction of Mg-endmember ----
   static const double x_Fo_mol  = 0.5;  // Fo fraction in Fo–Fay mix
-  static const double x_Wds_mol = 0.5;  // Mg-Wds fraction in Wds–FeWds mix
-  static const double x_Rwd_mol = 0.5;  // Mg-Rwd fraction in Rwd–FeRwd mix
+  // static const double x_Wds_mol = 0.5;  // Mg-Wds fraction in Wds–FeWds mix
+  // static const double x_Rwd_mol = 0.5;  // Mg-Rwd fraction in Rwd–FeRwd mix
 
   
   // -------------------- LIBRARY OF MIXTURES --------------------

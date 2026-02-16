@@ -71,8 +71,8 @@ struct EOS
   // partial V partial T at constant P in cm^3/(mol*K), given P in GPa, T in K, and rho in g/cm^3
   double dTdm(double m, double r, double rho, double P_cgs, double T);
   // partial T partial enclosed mass, P in cgs
-  double dTdP_S(double P_cgs, double T, double &rho_guess);
-  // partial T partial P along isentrope in K / GPa, given pressure in microbar
+  double dTdP_S(double P_cgs, double T, double rho);
+  // partial T partial P along isentrope in K / GPa, given pressure in microbar, also need the density at given P_cgs and rho as input
   int getthermal(){return thermal_type;}	
 
 

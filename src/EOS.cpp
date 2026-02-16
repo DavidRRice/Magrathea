@@ -1964,8 +1964,8 @@ double EOS::dTdm(double m, double r, double rho, double P_cgs, double T)
   return 1E-10*dTdV*G*m/(4*pi*pow(r,4)) / (rho/V*pPprho_T(rho,T) - dTdV*pPpT_rho(rho,T));
 }
 
-double EOS::dTdP_S(double P_cgs, double T, double &rho_guess)
-  // partial T partial P along isentrope in K / GPa, given pressure in microbar
+double EOS::dTdP_S(double P_cgs, double T, double rho)
+  // partial T partial P along isentrope in K / GPa, given pressure in microbar, also need the density at given P_cgs and rho as input
 {
   double P_GPa = P_cgs/1E10;
   if (eqntype == 6)		// ideal gas
@@ -1981,7 +1981,6 @@ double EOS::dTdP_S(double P_cgs, double T, double &rho_guess)
       return (gamma-1)*T/(gamma*P_GPa);
     else
     {
-      double rho = density(P_cgs,T,rho_guess);
       double V = volume(rho);
       return (gamma-1)*T / (P_GPa*gamma +(gamma-2)*1E2*a_vdW/sq(V) + 2E5*a_vdW*b_vdW/pow(V,3));
     }
@@ -2028,16 +2027,15 @@ double EOS::dTdP_S(double P_cgs, double T, double &rho_guess)
     else  
       return adiabat;     
   }
-  rho_guess = density(P_cgs, T, rho_guess);
-  double V = volume(rho_guess);
+  double V = volume(rho);
   double dTdV = dTdV_S(V, P_cgs, T);
   
-  double pPprho_T_val = pPprho_T(rho_guess, T);
+  double pPprho_T_val = pPprho_T(rho, T);
   // pPprho_T should be positive for physical EOS. If it's zero or negative, return NaN
   if (!gsl_finite(pPprho_T_val) || pPprho_T_val <= 0.0)
     return numeric_limits<double>::quiet_NaN();
 
-  return -V*dTdV/(rho_guess*pPprho_T_val);
+  return -V*dTdV/(rho*pPprho_T_val);
 }
 
 double P_EOS_S(double rho, void *params)
@@ -2146,7 +2144,10 @@ double EOS::density(double P1_cgs, double T1, double rho, double P2_cgs, double 
     
     // Use dTdP_S for adiabatic temperature gradient calculation
     if(rho < 0.01 || !gsl_finite(rho))          // rho will be set to negative if it is unknown.
+    {
       rho = density(V0) + P2_cgs/1E13;
+      rho = density(P1_cgs, T1, rho);
+    }
     
     T2 = T1 + dTdP_S(P1_cgs, T1, rho) * (P2_cgs - P1_cgs) / 1E10;
     return density(P2_cgs, T2, rho);
@@ -2205,7 +2206,7 @@ double density_solver(double P_cgs, double T, double (*pressure_func)(double rho
 
   double P_GPa = P_cgs / 1E10;			// convert pressure from microbar to GPa
 
-  density_params params[3] = {P_GPa, T, pressure_func};
+  density_params params = {P_GPa, T, pressure_func};
 
   int status;
   int iter = 0, max_iter = 100;

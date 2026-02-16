@@ -1029,7 +1029,6 @@ double dTdP_S_H2O_of_rho(double rho, double T)
 {
   constexpr double UN_T6   = 0.3157746;             // ha/kB × 1e−6
   constexpr double C13     = 1.0 / 3.0;
-  constexpr double AUM     = 1822.88848;            // m_u / m_e
   constexpr double Zmean   = 10.0 / 3.0;
   constexpr double CMImean = 18.0 / 3.0;
   constexpr double DENSCONV = 11.20587 * CMImean;   // g cm⁻³ → n_i  [au]
@@ -1042,7 +1041,7 @@ double dTdP_S_H2O_of_rho(double rho, double T)
   constexpr double QW=0.00123797, PW=2.384, PQ=1.5;
   constexpr double Q4=4.0, Q1=0.4, Q2=90.0;
   constexpr double PC1=0.0069, PC2=0.0031, PC3=0.00558, PC4=0.019;
-  constexpr double SBASE = 4.9;                     // entropy offset
+
 
   const double T6   = T / 1.0e6;                   // K→MK
   const double TEMP = T6 / UN_T6;                  // to atomic units (Ha/kB)
@@ -1171,7 +1170,6 @@ double dTdP_S_H2O_of_rho(double rho, double T)
   const double YH2T  = YH2X * pow(X1T, 2) + YH1X * X2T;
   const double YH2RT = YH2X * X1R * X1T        + YH1X * X2RT;
 
-  const double FNkTni = FNkTmol * YL + FNkTsi * YH;
   const double PnkTni = PnkTmol * YL + PnkTsi * YH + (FNkTsi - FNkTmol) * YH1R;
   const double UNkTni = UNkTmol * YL + UNkTsi * YH - (FNkTsi - FNkTmol) * YH1T;
 
@@ -1183,14 +1181,11 @@ double dTdP_S_H2O_of_rho(double rho, double T)
     - (UNkTsi - UNkTmol) * YH1R + (FNkTsi - FNkTmol) * YH2RT;
 
   //  4) Ideal gas of pseudo‑molecules
-  const double THLmol = sqrt(2 * pi / (18.0 * AUM * TEMP));
-  const double FNkTid = (log(DENSMOL * pow(THLmol, 3)) - 1.0) / 3.0;
   const double PnkTid = C13;
   const double UNkTid = 0.5;
 
   //  5) total (non‑ideal + ideal)
-  double PnkT,FNkT,UNkT,CV,CHIT,CHIR;
-  FNkT = FNkTni + FNkTid;
+  double PnkT,UNkT,CV,CHIT,CHIR;
   PnkT = PnkTni + PnkTid;		
   UNkT = UNkTni + UNkTid;
 
@@ -1203,18 +1198,14 @@ double dTdP_S_H2O_of_rho(double rho, double T)
   const double TL2  = PC4 * TTC;
   const double ULB  = pow(TL2, 2) * sqrt(TL2);  // (TL2)^2.5
   const double ULB1 = 1.0 + ULB;
-  const double FL   = log(ULB1 / ULB);
   const double UL   = 2.5 / ULB1;
   const double CVL  = UL * (1.0 - 1.5 * ULB) / ULB1;
 
   const double TTC2 = TTC * TTC;
   const double ULC1 = 1.0 + TTC2;
-  const double FC   = (PC1 * log(ULC1 / TTC2) + PC2 * atan(TTC)) / TCRIT
-    - PC3 / TEMP;
   const double UC   = ((2.0 * PC1 * TTC - PC2 * TTC2) / ULC1 - PC3) / TEMP;
   const double CVC  = 2.0 / TCRIT * (PC1 * (1.0 - TTC2) - PC2 * TTC) / (ULC1 * ULC1);
 
-  FNkT += FL + FC - SBASE;
   UNkT += UL + UC;
   CV   += CVL + CVC;
 
