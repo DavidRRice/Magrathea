@@ -17,17 +17,17 @@ namespace Mixing {
 
 
   // Simple normalization helper
-  static void normalize(vector<double> &x)
-  {
-    double sum = 0.0;
-    for (size_t i = 0; i < x.size(); ++i)
-      sum += x[i];
+  //static void normalize(vector<double> &x)
+  //{
+  //  double sum = 0.0;
+  //  for (size_t i = 0; i < x.size(); ++i)
+  //    sum += x[i];
 
-    if (sum <= 0.0) return;
+  //  if (sum <= 0.0) return;
 
-    for (size_t i = 0; i < x.size(); ++i)
-      x[i] /= sum;
-  }
+  //  for (size_t i = 0; i < x.size(); ++i)
+  //    x[i] /= sum;
+  //}
 
   // -------------------- General ideal mixture density --------------------
   //
@@ -46,7 +46,7 @@ namespace Mixing {
       return numeric_limits<double>::quiet_NaN();
 
     vector<double> x = x_in;
-    normalize(x);
+    //normalize(x);
 
     // sanitize guess (avoid absurd values propagating into component solvers)
     double guess = rho_guess;
@@ -55,6 +55,7 @@ namespace Mixing {
 
     for (size_t i = 0; i < n; ++i)
     {
+      if (x[i] <= 1e-10) continue;
       EOS *phase = components[i];
       const double Mi = phase->getmmol();        // g/mol
       if (!gsl_finite(Mi) || Mi <= 0.0)
@@ -86,7 +87,7 @@ namespace Mixing {
       return numeric_limits<double>::quiet_NaN();
 
     vector<double> x = x_in;
-    normalize(x);
+    //normalize(x);
 
     if (!gsl_finite(rho_guess_init) || rho_guess_init <= 0.0)
       rho_guess_init = 1.0;
@@ -103,6 +104,7 @@ namespace Mixing {
 
     for (size_t i = 0; i < n; ++i)
     {
+      if (x[i] <= 1e-10) continue;
       EOS *phase = components[i];
 
       const double rho_i = phase->density(P_cgs, T, rho_guess_phase[i]);
@@ -138,7 +140,7 @@ namespace Mixing {
       return numeric_limits<double>::quiet_NaN();
 
     vector<double> x = x_in;
-    normalize(x);
+    //normalize(x);
 
     double inv_grad_sum = 0.0;  // Σ x_i / grad_i using original x_i
     double x_used_sum   = 0.0;  // Σ x_i over phases with a usable gradient
@@ -147,6 +149,7 @@ namespace Mixing {
     double guess = rho_guess;
     for (size_t i = 0; i < n; ++i)
     {
+      if (x[i] <= 1e-10) continue;
       EOS *phase = components[i];
 
       // Skip EOS that have no thermal parameters: thermal_type == 0
@@ -207,7 +210,7 @@ namespace Mixing {
       return numeric_limits<double>::quiet_NaN();
 
     vector<double> x = x_in;
-    normalize(x);
+    //normalize(x);
 
     double P_GPa = P_cgs / 1E10;
     double numerator = 0.0;    // Σ x_i (∂V/∂T)_P,i
@@ -218,6 +221,7 @@ namespace Mixing {
 
     for (size_t i = 0; i < n; ++i)
     {
+      if (x[i] <= 1e-10) continue;
       EOS *phase = components[i];
 
       // Skip EOS that have no thermal parameters: thermal_type == 0
@@ -283,7 +287,7 @@ namespace Mixing {
       return numeric_limits<double>::quiet_NaN();
 
     vector<double> x = x_in;
-    normalize(x);
+    //normalize(x);
 
     if (!gsl_finite(rho_guess_init) || rho_guess_init <= 0.0)
       rho_guess_init = 1.0;
@@ -303,6 +307,7 @@ namespace Mixing {
 
     for (size_t i = 0; i < n; ++i)
     {
+      if (x[i] <= 1e-10) continue;
       EOS *phase = components[i];
 
       const int thermal_type = phase->getthermal();
@@ -593,25 +598,27 @@ namespace Mixing {
 
 
   
-  //---------- MANTLE MIXTURE GENERATOR --------------
-  /*
-  * upper_out (size 8):
-  *   0: Fo          (forsterite, Mg2SiO4)
-  *   1: Fayalite    (Fe2SiO4)
-  *   2: Enstatite   (Mg2Si2O6)
-  *   3: Ferrosilite (Fe2Si2O6)
-  *   4: Diopside    (CaMgSi2O6)
-  *   5: Hedenbergite( CaFeSi2O6)
-  *   6: Pyrope      (Mg3Al2Si3O12)
-  *   7: Almandine   (Fe3Al2Si3O12)
-  */
+/*
+ * upper_out (size 11):
+ *   0: Fo          (Mg2SiO4)
+ *   1: Fa          (Fe2SiO4)
+ *   2: En          (Mg2Si2O6)
+ *   3: Fs          (Fe2Si2O6)
+ *   4: St          (SiO2)
+ *   5: MgO         (periclase)
+ *   6: FeO         (wustite)
+ *   7: Di          (CaMgSi2O6)
+ *   8: Hd          (CaFeSi2O6)
+ *   9: Py          (Mg3Al2Si3O12)
+ *  10: Alm         (Fe3Al2Si3O12)
+ */
 bool compute_upper_mantle_fractions(double CaMg,
                                     double SiMg,
                                     double AlMg,
                                     double FeMg,
                                     vector<double> &upper_out)
 {
-    upper_out.assign(8, 0.0);
+    upper_out.assign(11, 0.0);
 
     if (CaMg < 0.0 || AlMg < 0.0 || FeMg < 0.0 || SiMg <= 0.0)
         return false;
@@ -624,36 +631,84 @@ bool compute_upper_mantle_fractions(double CaMg,
     const double X_Mg = 1.0 / (1.0 + R_Fe);
     const double X_Fe = 1.0 - X_Mg;
 
-    // Mineral formula-unit moles (per 1 mole of Mg)
-    double n_Cpx = R_Ca;
-    double n_Gt  = 0.5 * R_Al;
-    double n_Ol  = 1.0 / X_Mg + R_Ca - R_Si; // = 1 + R_Fe + R_Ca - R_Si
-    double n_Opx = R_Si - 1.5 * R_Ca - 0.75 * R_Al - 1.0 / (2.0 * X_Mg);  // = R_Si - 1.5*R_Ca -0.75*R_Al -0.5*(1+R_Fe)
+    // Fixed Ca/Al silicates (always formed)
+    const double n_Cpx = R_Ca;        // Ca(Mg,Fe)Si2O6
+    const double n_Gt  = 0.5 * R_Al;  // (Mg,Fe)3Al2Si3O12
 
-    if (!enforce_non_negative(n_Cpx)) return false;
-    if (!enforce_non_negative(n_Gt))  return false;
+    // Budgets remaining after Ca/Al silicates:
+    //   Cpx uses: 1 (Mg+Fe) and 2 Si
+    //   Gt  uses: 3 (Mg+Fe) and 3 Si
+    const double Si_fixed  = 2.0*n_Cpx + 3.0*n_Gt;
+    const double Cat_fixed = 1.0*n_Cpx + 3.0*n_Gt;
+
+    double rem_Si  = R_Si - Si_fixed;
+    double rem_cat = (1.0 + R_Fe) - Cat_fixed;  // total (Mg+Fe) remaining
+
+    if (rem_Si  < -EPS) return false;  // not enough Si to host Ca/Al silicates
+    if (rem_cat < -EPS) return false;  // not enough (Mg+Fe) to host Ca/Al silicates
+    if (rem_Si  < 0.0) rem_Si  = 0.0;
+    if (rem_cat < 0.0) rem_cat = 0.0;
+
+    // Phase pools (formula-unit moles)
+    double n_Ol = 0.0;  // (Mg,Fe)2SiO4   uses 2 cations, 1 Si
+    double n_Opx = 0.0; // (Mg,Fe)2Si2O6  uses 2 cations, 2 Si
+    double n_St  = 0.0; // SiO2           uses 0 cations, 1 Si
+    double n_Ox  = 0.0; // (Mg,Fe)O       uses 1 cation, 0 Si
+
+    // Nominal window in reduced budgets:
+    //   rem_cat/2 <= rem_Si <= rem_cat
+    if (rem_Si > rem_cat + EPS) {
+        // High Si: no olivine. Use all cations in Opx; excess Si -> St
+        n_Ol  = 0.0;
+        n_Opx = 0.5 * rem_cat;
+        n_St  = rem_Si - rem_cat;
+        n_Ox  = 0.0;
+    } else if (rem_Si < 0.5*rem_cat - EPS) {
+        // Low Si: no Opx. Use all Si in Ol; excess cations -> oxides
+        n_Opx = 0.0;
+        n_Ol  = rem_Si;
+        n_Ox  = rem_cat - 2.0*rem_Si;
+        n_St  = 0.0;
+    } else {
+        // Nominal: Ol + Opx
+        n_Ol  = rem_cat - rem_Si;
+        n_Opx = rem_Si - 0.5*rem_cat;
+        n_St  = 0.0;
+        n_Ox  = 0.0;
+    }
+
     if (!enforce_non_negative(n_Ol))  return false;
     if (!enforce_non_negative(n_Opx)) return false;
+    if (!enforce_non_negative(n_St))  return false;
+    if (!enforce_non_negative(n_Ox))  return false;
 
     // Endmember moles
-    double n_Fo  = X_Mg * n_Ol;
-    double n_Fa  = X_Fe * n_Ol;
-    double n_En  = X_Mg * n_Opx;
-    double n_Fs  = X_Fe * n_Opx;
-    double n_Di  = X_Mg * n_Cpx;
-    double n_Hd  = X_Fe * n_Cpx;
-    double n_Py  = X_Mg * n_Gt;
-    double n_Alm = X_Fe * n_Gt;
+    const double n_Fo  = X_Mg * n_Ol;
+    const double n_Fa  = X_Fe * n_Ol;
 
+    const double n_En  = X_Mg * n_Opx;
+    const double n_Fs  = X_Fe * n_Opx;
 
-    // Convert formula-unit moles -> mass fractions using molar masses (g/mol)
-    const double n[8] = { n_Fo, n_Fa, n_En, n_Fs, n_Di, n_Hd, n_Py, n_Alm };
+    const double n_MgO = X_Mg * n_Ox;
+    const double n_FeO = X_Fe * n_Ox;
 
-    const double M[8] = {
+    const double n_Di  = X_Mg * n_Cpx;
+    const double n_Hd  = X_Fe * n_Cpx;
+
+    const double n_Py  = X_Mg * n_Gt;
+    const double n_Alm = X_Fe * n_Gt;
+
+    // Convert formula-unit moles -> mass fractions
+    const double n[11] = { n_Fo, n_Fa, n_En, n_Fs, n_St, n_MgO, n_FeO, n_Di, n_Hd, n_Py, n_Alm };
+
+    const double M[11] = {
       Fo->getmmol(),
       Fayalite->getmmol(),
       Enstatite->getmmol(),
       Ferrosilite->getmmol(),
+      Stishovite->getmmol(), 
+      MgO->getmmol(),
+      B1FeO->getmmol(),
       Diopside->getmmol(),
       Hedenbergite->getmmol(),
       Pyrope->getmmol(),
@@ -661,22 +716,32 @@ bool compute_upper_mantle_fractions(double CaMg,
     };
 
     double mtot = 0.0;
-    for (int i = 0; i < 8; ++i) mtot += n[i] * M[i];
+    for (int i = 0; i < 11; ++i) mtot += n[i] * M[i];
     if (mtot <= 0.0) return false;
 
-    for (int i = 0; i < 8; ++i) upper_out[i] = (n[i] * M[i]) / mtot;
+    for (int i = 0; i < 11; ++i) upper_out[i] = (n[i] * M[i]) / mtot;
 
     return true;
 }
 
 /*
- * middle_out (size 6):
- *   0: Wadsleyite (Mg) (or Ringwoodite)
- *   1: Fe-Wadsleyite  (or Fe-Ringwoodite)
- *   2: Pyrope
- *   3: Almandine
- *   4: Grossular
- *   5: Mg-Majorite
+ * middle_out (size 9):
+ *   0: Wadsleyite (Mg)   (or Ringwoodite)
+ *   1: Fe-Wadsleyite     (or Fe-Ringwoodite)
+ *   2: Stishovite        (SiO2)
+ *   3: Periclase         (MgO)
+ *   4: Wustite           (FeO)
+ *   5: Pyrope            (Mg3Al2Si3O12)
+ *   6: Almandine         (Fe3Al2Si3O12)
+ *   7: Grossular         (Ca3Al2Si3O12)
+ *   8: Mg-Majorite       (Mg4Si4O12)  [Mg-only; no Fe-majorite]
+ *
+ * Switch logic (after forming Ca/Al garnets):
+ *   - Low Si:  Wds + (MgO/FeO), no majorite
+ *   - Nominal: Wds + Mg-majorite
+ *   - High Si: Wds (minimum needed to host Fe) + Mg-majorite + St
+ *
+ * Assumption: a single common Mg# partitions Fe between Wds, (Py/Alm), and (MgO/FeO).
  */
 bool compute_middle_mantle_fractions(double CaMg,
                                      double SiMg,
@@ -684,7 +749,7 @@ bool compute_middle_mantle_fractions(double CaMg,
                                      double FeMg,
                                      vector<double> &middle_out)
 {
-    middle_out.assign(6, 0.0);
+    middle_out.assign(9, 0.0);
 
     if (CaMg < 0.0 || AlMg < 0.0 || FeMg < 0.0 || SiMg <= 0.0)
         return false;
@@ -694,63 +759,128 @@ bool compute_middle_mantle_fractions(double CaMg,
     const double R_Al = AlMg;
     const double R_Fe = FeMg;
 
-    double n_Grs = R_Ca / 3.0;
-    double n_G   = 0.5 * R_Al - R_Ca / 3.0;
-    double n_W   = 1.0 + R_Ca + R_Fe - R_Si;
-    double n_Mj  = -0.375 * R_Al - 0.25  * R_Ca - 0.25  * R_Fe + 0.5   * R_Si - 0.25;
+    // Fixed Ca/Al garnets
+    double n_Gross = R_Ca / 3.0;                // grossular
+    double n_G     = 0.5 * R_Al - R_Ca / 3.0;   // (pyrope+almandine) pool
 
-    if (!enforce_non_negative(n_Grs)) return false;
-    if (!enforce_non_negative(n_G))   return false;
-    if (!enforce_non_negative(n_W))   return false;
-    if (!enforce_non_negative(n_Mj))  return false;
+    if (!enforce_non_negative(n_Gross)) return false;
+    if (!enforce_non_negative(n_G))     return false;
 
-    // Common Mg# in Wadsleyite + Al-garnet:
-    double num =  3.0*R_Al + 2.0*R_Ca + 2.0*R_Fe - 4.0*R_Si + 4.0;
-    double den =  3.0*R_Al + 2.0*R_Ca + 4.0*R_Fe - 4.0*R_Si + 4.0;
-    if (fabs(den) < EPS) return false;
+    // Remaining budgets after Ca/Al garnets:
+    //   Si used = 3*(n_Gross + n_G) = 1.5*R_Al
+    //   (Mg+Fe) cations used = 3*n_G
+    double rem_Si  = R_Si - 3.0*(n_Gross + n_G);
+    double rem_cat = (1.0 + R_Fe) - 3.0*n_G;
 
-    double X_Mg = num / den;
-    double X_Fe = 1.0 - X_Mg;
+    if (rem_Si  < -EPS) return false;
+    if (rem_cat < -EPS) return false;
+    if (rem_Si  < 0.0) rem_Si  = 0.0;
+    if (rem_cat < 0.0) rem_cat = 0.0;
 
+    // Phase pools
+    double n_W  = 0.0;  // total Wds/Rwd formula units: (Mg,Fe)2SiO4
+    double n_Mj = 0.0;  // Mg-majorite formula units (Mg-only): Mg4Si4O12
+    double n_Ox = 0.0;  // (Mg,Fe)O pool
+    double n_St = 0.0;  // SiO2
+
+    // Reduced-budget nominal window:
+    //   rem_cat/2 <= rem_Si <= rem_cat
+    if (rem_Si < 0.5*rem_cat - EPS) {
+        // Low Si: no majorite; Wds + oxides
+        n_W  = rem_Si;
+        n_Mj = 0.0;
+        n_Ox = rem_cat - 2.0*n_W;
+        n_St = 0.0;
+    } else if (rem_Si <= rem_cat + EPS) {
+        // Nominal: Wds + Mg-majorite
+        n_W  = rem_cat - rem_Si;
+        n_Mj = 0.5*rem_Si - 0.25*rem_cat;
+        n_Ox = 0.0;
+        n_St = 0.0;
+    } else {
+        // High Si: Mg-majorite + St, but keep minimum Wds needed to host Fe (no Fe-majorite)
+        // Require Fe capacity: (1-X_Mg)*(3*n_G + 2*n_W) = R_Fe with X_Mg>=0 -> 3*n_G + 2*n_W >= R_Fe
+        const double n_W_minFe = (std::max)(0.0, (R_Fe - 3.0*n_G) / 2.0);
+
+        // Don't exceed available cations or Si
+        n_W = n_W_minFe;
+        const double n_W_maxCat = 0.5*rem_cat;
+        if (n_W > n_W_maxCat) n_W = n_W_maxCat;
+        if (n_W > rem_Si)     n_W = rem_Si;
+
+        const double cat_left = rem_cat - 2.0*n_W;
+        const double si_left  = rem_Si  - 1.0*n_W;
+        if (cat_left < -EPS || si_left < -EPS) return false;
+
+        n_Mj = 0.25 * (std::max)(0.0, cat_left);  // cations limit majorite in high-Si field
+        // St takes the remaining Si
+        n_St = si_left - 4.0*n_Mj;
+        n_Ox = 0.0;
+
+        if (!enforce_non_negative(n_St)) return false;
+    }
+
+    if (!enforce_non_negative(n_W))  return false;
+    if (!enforce_non_negative(n_Mj)) return false;
+    if (!enforce_non_negative(n_Ox)) return false;
+    if (!enforce_non_negative(n_St)) return false;
+
+    // Common Mg# across Wds, Al-garnet, and oxides (majorite is Mg-only)
+    const double D = 3.0*n_G + 2.0*n_W + 1.0*n_Ox;  // total (Mg+Fe) sites that share X_Mg
+    if (D < EPS) return false;
+
+    double X_Mg = 1.0 - (R_Fe / D);
     if (X_Mg < -EPS || X_Mg > 1.0 + EPS) return false;
     if (X_Mg < 0.0) X_Mg = 0.0;
     if (X_Mg > 1.0) X_Mg = 1.0;
+    const double X_Fe = 1.0 - X_Mg;
 
-    double n_Wds    = X_Mg * n_W;
-    double n_FeWds  = X_Fe * n_W;
-    double n_Py     = X_Mg * n_G;
-    double n_Alm    = X_Fe * n_G;
-    double n_Gross  = n_Grs;
-    double n_MgMaj  = n_Mj;
+    // Split pools into endmembers
+    const double n_Wds    = X_Mg * n_W;
+    const double n_FeWds  = X_Fe * n_W;
+    const double n_MgO    = X_Mg * n_Ox;
+    const double n_FeO    = X_Fe * n_Ox;
+    const double n_Py     = X_Mg * n_G;
+    const double n_Alm    = X_Fe * n_G;
+    const double n_MgMaj  = n_Mj;     // Mg-only
 
-    // Convert formula-unit moles -> mass fractions using EOS molar masses (g/mol)
-    const double n[6] = { n_Wds, n_FeWds, n_Py, n_Alm, n_Gross, n_MgMaj };
-    const double M[6] = {
+    // Convert formula-unit moles -> mass fractions
+    const double n[9] = { n_Wds, n_FeWds, n_St, n_MgO, n_FeO, n_Py, n_Alm, n_Gross, n_MgMaj };
+    const double M[9] = {
       Wds->getmmol(),
       Fe_Wadsleyite->getmmol(),
+      Stishovite->getmmol(),
+      MgO->getmmol(),
+      B1FeO->getmmol(),
       Pyrope->getmmol(),
       Almandine->getmmol(),
       Grossular->getmmol(),
       Mg_Majorite->getmmol()
     };
 
-double mtot = 0.0;
-for (int i = 0; i < 6; ++i) mtot += n[i] * M[i];
-if (mtot <= 0.0) return false;
+    double mtot = 0.0;
+    for (int i = 0; i < 9; ++i) mtot += n[i] * M[i];
+    if (mtot <= 0.0) return false;
 
-for (int i = 0; i < 6; ++i) middle_out[i] = (n[i] * M[i]) / mtot;
+    for (int i = 0; i < 9; ++i) middle_out[i] = (n[i] * M[i]) / mtot;
 
-return true;
+    return true;
 }
 
+
 /*
- * lower_out (size 6):
+ * lower_out (size 7):
  *   0: Mg-Perovskite  (MgSiO3) (or Mg-PPv)
  *   1: Fe-Perovskite  (FeSiO3) (or Fe-PPv)
- *   2: Periclase      (MgO)
- *   3: Wustite        (FeO)
- *   4: Ca-Perovskite  (CaSiO3)
- *   5: Al-Perovskite  (AlAlO3)
+ *   2: Al-Perovskite  (AlAlO3)   [Al2O3 component]
+ *   3: Stishovite     (SiO2)
+ *   4: Periclase      (MgO)
+ *   5: Wustite        (FeO)
+ *   6: Ca-Perovskite  (CaSiO3)
+ *
+ * Switch logic:
+ *   - Low Si is naturally handled by (MgO/FeO) pool.
+ *   - High Si: cap Pv by available (Mg+Fe) cations; excess Si -> St.
  */
 bool compute_lower_mantle_fractions(double CaMg,
                                     double SiMg,
@@ -758,7 +888,7 @@ bool compute_lower_mantle_fractions(double CaMg,
                                     double FeMg,
                                     vector<double> &lower_out)
 {
-    lower_out.assign(6, 0.0);
+    lower_out.assign(7, 0.0);
 
     if (CaMg < 0.0 || AlMg < 0.0 || FeMg < 0.0 || SiMg <= 0.0)
         return false;
@@ -772,186 +902,180 @@ bool compute_lower_mantle_fractions(double CaMg,
     const double X_Fe = 1.0 - X_Mg;
 
     double n_CaPv = R_Ca;
-    double n_AlPv = 0.5 * R_Al;
-    double n_Pv   = R_Si - R_Ca;
-    double n_Fp   = 1.0 / X_Mg - n_Pv; // = 1 + R_Fe - (R_Si - R_Ca)
+    double n_AlPv = 0.5 * R_Al;   // Al2O3 component in Pv/PPv (does not change Pv/Fp budgets here)
+
+    // Requested Pv from Si (same as original scheme)
+    double n_Pv_req = R_Si - R_Ca;
+    if (!enforce_non_negative(n_Pv_req)) return false;
+
+    // Total (Mg+Fe) cation capacity for Pv + oxides
+    const double cap = 1.0 / X_Mg;  // = 1 + R_Fe
+
+    double n_Pv = 0.0;
+    double n_Fp = 0.0;  // (MgO+FeO) pool
+    double n_St = 0.0;
+
+    if (n_Pv_req > cap + EPS) {
+        // High Si: cap Pv, dump excess Si into St
+        n_Pv = cap;
+        n_Fp = 0.0;
+        n_St = n_Pv_req - cap;
+    } else {
+        n_Pv = n_Pv_req;
+        n_Fp = cap - n_Pv;
+        n_St = 0.0;
+    }
 
     if (!enforce_non_negative(n_CaPv)) return false;
     if (!enforce_non_negative(n_AlPv)) return false;
     if (!enforce_non_negative(n_Pv))   return false;
     if (!enforce_non_negative(n_Fp))   return false;
+    if (!enforce_non_negative(n_St))   return false;
 
-    double n_PvMg = X_Mg * n_Pv;
-    double n_PvFe = X_Fe * n_Pv;
-    double n_FpMg = X_Mg * n_Fp;
-    double n_FpFe = X_Fe * n_Fp;
+    const double n_PvMg = X_Mg * n_Pv;
+    const double n_PvFe = X_Fe * n_Pv;
+    const double n_FpMg = X_Mg * n_Fp;
+    const double n_FpFe = X_Fe * n_Fp;
 
-    // Convert formula-unit moles -> mass fractions using EOS molar masses (g/mol)
-    const double n[6] = { n_PvMg, n_PvFe, n_FpMg, n_FpFe, n_CaPv, n_AlPv };
-    const double M[6] = {
-      Si_Pv->getmmol(),         // MgSiO3
-      Fe_Perovskite->getmmol(), // FeSiO3
-      MgO->getmmol(),           // MgO
-      B1FeO->getmmol(),         // FeO
-      Ca_Perovskite->getmmol(), // CaSiO3
-      Al_Perovskite->getmmol()  // Al2O3 (your "AlAlO3")
+    const double n[7] = { n_PvMg, n_PvFe, n_AlPv, n_St, n_FpMg, n_FpFe, n_CaPv };
+    const double M[7] = {
+      Si_Pv->getmmol(),
+      Fe_Perovskite->getmmol(),
+      Al_Perovskite->getmmol(),
+      Stishovite->getmmol(),
+      MgO->getmmol(),
+      B1FeO->getmmol(),
+      Ca_Perovskite->getmmol()
     };
 
     double mtot = 0.0;
-    for (int i = 0; i < 6; ++i) mtot += n[i] * M[i];
+    for (int i = 0; i < 7; ++i) mtot += n[i] * M[i];
     if (mtot <= 0.0) return false;
 
-    for (int i = 0; i < 6; ++i) lower_out[i] = (n[i] * M[i]) / mtot;
+    for (int i = 0; i < 7; ++i) lower_out[i] = (n[i] * M[i]) / mtot;
 
     return true;
 }
 
 /*
- * Convenience wrapper with fallbacks:
- *  - clamps Si/Mg into its allowed [Si_min, Si_max] range
- *  - if Al/Mg is too small to host Ca/Mg, sets Ca=Al=0
- *  - if something still fails, tries Ca=Al=0 as a last resort
+ * Mantle stoichiometry wrapper with minimal clamping + clear warnings:
+ *  - clamps negative Ca/Mg, Al/Mg, Fe/Mg to 0; enforces Si/Mg > 0
+ *  - enforces middle-mantle feasibility Al/Mg >= (2/3)Ca/Mg by clamping Ca/Mg down if needed
+ *  - enforces global minimum Si/Mg needed to host fixed Ca/Al silicates across all mantle layers:
+ *        Si/Mg >= max( 2Ca/Mg + 1.5Al/Mg , 1.5Al/Mg , Ca/Mg )
+ *  - attempts solve; if it fails, optionally retries with Ca=Al=0
  *  - returns any adjustments in 'warning'
  */
 bool compute_all_mantle_fractions(double CaMg,
-                                  double SiMg,
-                                  double AlMg,
-                                  double FeMg,
-                                  vector<double> &upper_out,
-                                  vector<double> &middle_out,
-                                  vector<double> &lower_out,
-                                  string &warning)
+                                 double SiMg,
+                                 double AlMg,
+                                 double FeMg,
+                                 vector<double> &upper_out,
+                                 vector<double> &middle_out,
+                                 vector<double> &lower_out,
+                                 string &warning)
 {
     stringstream warn;
     warning.clear();
 
-    // Copy inputs so we can modify them locally
     double R_Ca = CaMg;
     double R_Si = SiMg;
     double R_Al = AlMg;
     double R_Fe = FeMg;
 
-    // Basic clamping for negative inputs
     if (R_Ca < 0.0) { warn << "Ca/Mg < 0; set to 0. "; R_Ca = 0.0; }
     if (R_Al < 0.0) { warn << "Al/Mg < 0; set to 0. "; R_Al = 0.0; }
     if (R_Fe < 0.0) { warn << "Fe/Mg < 0; set to 0. "; R_Fe = 0.0; }
-    if (R_Si <= 0.0) {
-        warn << "Si/Mg <= 0 is unphysical; set to 0.1. ";
-        R_Si = 0.1;
+    if (R_Si <= 0.0) { warn << "Si/Mg <= 0 is unphysical; set to 0.1. "; R_Si = 0.1; }
+
+    // Middle mantle feasibility: require R_Al >= (2/3) R_Ca
+    if (R_Ca > 0.0 && R_Al < (2.0/3.0)*R_Ca - EPS) {
+        double R_Ca_old = R_Ca;
+        R_Ca = 1.5 * R_Al;
+        warn << "Al/Mg too low to host requested Ca/Mg in middle mantle (need Al/Mg >= 2/3 Ca/Mg). "
+             << "Clamping Ca/Mg from " << R_Ca_old << " to " << R_Ca << ". ";
     }
 
-    // If not enough Al to host Ca, zero both (your requested fallback)
-    if (R_Al < (2.0/3.0)*R_Ca && R_Ca > 0.0) {
-        warn << "Al/Mg is too low to host Ca/Mg in our mantle model; "
-             << "setting Ca/Mg and Al/Mg to 0. ";
-        R_Ca = 0.0;
-        R_Al = 0.0;
+    // Global minimum Si/Mg to host fixed Ca/Al phases in all mantle layers
+    const double Si_min_upper  = 2.0*R_Ca + 1.5*R_Al;
+    const double Si_min_middle = 1.5*R_Al;
+    const double Si_min_lower  = R_Ca;
+
+    const double Si_min_global =
+        (std::max)(Si_min_upper, (std::max)(Si_min_middle, Si_min_lower));
+
+    if (R_Si < Si_min_global - EPS) {
+        double R_Si_old = R_Si;
+        R_Si = Si_min_global;
+        warn << "Si/Mg too low to host fixed Ca/Al phases in all mantle layers. "
+             << "Need Si/Mg >= " << Si_min_global
+             << ". Clamping Si/Mg from " << R_Si_old << " to " << R_Si << ". ";
     }
 
-    // Compute allowed Si range for current Ca, Al, Fe:
-    //   Si_min from Opx >= 0,
-    //   Si_max from Ol/Wds/Fp >= 0.
-    auto clamp_Si = [&](double &R_Si_local, double R_Ca_local, double R_Al_local, double R_Fe_local)
-    {
-        double Si_min = 0.5 * (1.0 + R_Fe_local) + 1.5 * R_Ca_local + 0.75 * R_Al_local;
-        double Si_max = 1.0 + R_Fe_local + R_Ca_local;
+    // First attempt
+    bool ok_upper  = compute_upper_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, upper_out);
+    bool ok_middle = compute_middle_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, middle_out);
+    bool ok_lower  = compute_lower_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, lower_out);
 
-        if (Si_min > Si_max) {
-            // Incompatible; caller will decide on further fallback.
-            return std::make_pair(false, std::pair<double,double>(Si_min, Si_max));
-        }
-
-        if (R_Si_local < Si_min) {
-            warn << "Si/Mg too low; clamped from " << R_Si_local
-                 << " to " << Si_min << ". ";
-            R_Si_local = Si_min;
-        } else if (R_Si_local > Si_max) {
-            warn << "Si/Mg too high; clamped from " << R_Si_local
-                 << " to " << Si_max << ". ";
-            R_Si_local = Si_max;
-        }
-
-        return std::make_pair(true, std::pair<double,double>(Si_min, Si_max));
-    };
-
-    // First attempt: with (possibly adjusted) Ca, Al, Fe, Si
-    {
-        auto ok_range = clamp_Si(R_Si, R_Ca, R_Al, R_Fe);
-        if (!ok_range.first) {
-            // If Si range itself is inconsistent, drop to Ca=Al=0 fallback
-            warn << "Input ratios give incompatible Si/Mg bounds; "
-                 << "resetting Ca/Mg and Al/Mg to 0. ";
-            R_Ca = 0.0;
-            R_Al = 0.0;
-            // recompute Si bounds for Ca=Al=0
-            clamp_Si(R_Si, R_Ca, R_Al, R_Fe);
-        }
-
-        bool ok1 = compute_upper_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, upper_out);
-        bool ok2 = compute_middle_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, middle_out);
-        bool ok3 = compute_lower_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, lower_out);
-
-        if (ok1 && ok2 && ok3) {
-            warning = warn.str();
-            return true;
-        }
+    if (ok_upper && ok_middle && ok_lower) {
+        warning = warn.str();
+        return true;
     }
 
-    // Last-resort fallback: force Ca=Al=0, clamp Si for that case, and try again
-    warn << "Mantle composition still invalid; trying Ca/Mg=0 and Al/Mg=0. ";
+    // Optional fallback while middle/lower are still being updated
+    warn << "Mantle stoichiometry failed after clamping. "
+         << "ok_upper=" << ok_upper << " ok_middle=" << ok_middle << " ok_lower=" << ok_lower << ". "
+         << "Retrying with Ca/Mg=0 and Al/Mg=0. ";
+
     R_Ca = 0.0;
     R_Al = 0.0;
-    clamp_Si(R_Si, R_Ca, R_Al, R_Fe);
 
-    bool ok1 = compute_upper_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, upper_out);
-    bool ok2 = compute_middle_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, middle_out);
-    bool ok3 = compute_lower_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, lower_out);
+    ok_upper  = compute_upper_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, upper_out);
+    ok_middle = compute_middle_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, middle_out);
+    ok_lower  = compute_lower_mantle_fractions(R_Ca, R_Si, R_Al, R_Fe, lower_out);
 
-    if (ok1 && ok2 && ok3) {
+    if (ok_upper && ok_middle && ok_lower) {
         warning = warn.str();
         return true;
     }
 
     warning = warn.str() + " Mantle composition could not be represented even after fallbacks.";
     return false;
-  }
+}
 
-
-  // ---- knobs you can tune: molar fraction of Mg-endmember ----
-  static const double x_Fo_mol  = 0.5;  // Fo fraction in Fo–Fay mix
-  // static const double x_Wds_mol = 0.5;  // Mg-Wds fraction in Wds–FeWds mix
-  // static const double x_Rwd_mol = 0.5;  // Mg-Rwd fraction in Rwd–FeRwd mix
+  // ---- knobs you can tune: mass fraction of Mg-endmember ----
+  static const double x_Fo_mass  = 0.5;  // Fo fraction in Fo–Fay mix
 
   
   // -------------------- LIBRARY OF MIXTURES --------------------
   // -------------------- Fo–Fay 50/50 mixture --------------------
   static vector<EOS*> comps_FoFay{Fo, Ice_Seager};
-  static vector<double> x_FoFay{x_Fo_mol, 1.0 - x_Fo_mol};
+  static vector<double> x_FoFay{x_Fo_mass, 1.0 - x_Fo_mass};
   DEFINE_IDEAL_MIX_WRAPPERS(FoFay)
 
   // -------------------- Upper mantle, Olivine Region Mixture --------------------
-  static vector<EOS*> comps_OlMix{Fo, Fayalite, Enstatite, Ferrosilite, Diopside, Hedenbergite, Pyrope, Almandine};
-  static vector<double> x_OlMix(8, 0.0);  // will be filled at runtime
+  static vector<EOS*> comps_OlMix{Fo, Fayalite, Enstatite, Ferrosilite, Stishovite, MgO, B1FeO, Diopside, Hedenbergite, Pyrope, Almandine};
+  static vector<double> x_OlMix(11, 0.0);  // will be filled at runtime
   DEFINE_IDEAL_MIX_WRAPPERS(OlMix)
 
-  // -------------------- Upper mantle, Wadsleyite Region Mixture --------------------
-  static vector<EOS*> comps_WdsMix{Wds, Fe_Wadsleyite, Pyrope, Almandine, Grossular, Mg_Majorite};
-  static vector<double> x_WdsMix(6,0);
+  // -------------------- Middle mantle, Wadsleyite Region Mixture --------------------
+  static vector<EOS*> comps_WdsMix{Wds, Fe_Wadsleyite, Stishovite, MgO, B1FeO, Pyrope, Almandine, Grossular, Mg_Majorite};
+  static vector<double> x_WdsMix(9,0);
   DEFINE_IDEAL_MIX_WRAPPERS(WdsMix)
 
-  // -------------------- Upper mantle, Ringwoodite Region Mixture --------------------
-  static vector<EOS*> comps_RwdMix{Rwd, Fe_Ringwoodite, Pyrope, Almandine, Grossular, Mg_Majorite};
-  static vector<double> x_RwdMix(6,0);
+  // -------------------- Middle mantle, Ringwoodite Region Mixture --------------------
+  static vector<EOS*> comps_RwdMix{Rwd, Fe_Ringwoodite, Stishovite, MgO, B1FeO, Pyrope, Almandine, Grossular, Mg_Majorite};
+  static vector<double> x_RwdMix(9,0);
   DEFINE_IDEAL_MIX_WRAPPERS(RwdMix)
   
   // -------------------- Lower mantle, Bridgmanite Region Mixture --------------------
-  static vector<EOS*> comps_BrgMix{Si_Pv, Fe_Perovskite, MgO, B1FeO, Ca_Perovskite, Al_Perovskite};
-  static vector<double> x_BrgMix(6,0);
+  static vector<EOS*> comps_BrgMix{Si_Pv, Fe_Perovskite, Stishovite, MgO, B1FeO, Ca_Perovskite, Al_Perovskite};
+  static vector<double> x_BrgMix(7,0);
   DEFINE_IDEAL_MIX_WRAPPERS(BrgMix)
 
   // -------------------- Lower mantle, Post-Perovskite Region Mixture --------------------
-  static vector<EOS*> comps_PPvMix{Si_PPv_Sakai, Fe_Post_Perovskite, MgO, B1FeO, Ca_Perovskite, Al_Post_Perovskite};
-  static vector<double> x_PPvMix(6,0);
+  static vector<EOS*> comps_PPvMix{Si_PPv_Sakai, Fe_Post_Perovskite, Stishovite, MgO, B1FeO, Ca_Perovskite, Al_Post_Perovskite};
+  static vector<double> x_PPvMix(7,0);
   DEFINE_IDEAL_MIX_WRAPPERS(PPvMix)
  
   // -------------------- Rock-Water Mix --------------------
