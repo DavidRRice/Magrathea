@@ -37,6 +37,7 @@ struct hydro			// pressure, density of each species, and maybe temperature again
   int getLayer_from_m(double m) const;	        // return the layer index (from 0, count from bottom) by given the mass in MEarth. M(l)<=m*MEarth<M(l+1)
   vector<double> getRs();
   vector<double> getTs();	// return the temperatures at the outer side of each component interfaces as well as planet surface 
+  EOS* getPhase(int layer){ return Phaselist[layer]; }   // read-only access
   string checkdummy();		// Check if there is any Dummy EOS used in the profile
   void setstatus(int s);
   int getstatus(){return ode_status;}
@@ -50,6 +51,21 @@ private:
   int ode_status;			// 0 legit result, 1 dummy EOS used, 2 not converged, 3 for two layer mode, when the code stops when the center pressure meets it accuracy target before the surface pressure reaches within 2%.
 };
 
+struct CorePartitionOptions
+{
+  bool use_partitioning = false;   // switch
+  int  max_iter = 8;
+  double relax = 0.4;              // damping on XFe update
+
+  // Bulk core wt% inputs 
+  double wS = 0, wO = 0, wH = 0, wC = 0, wSi = 0, wNi = 0;
+
+  // Partition coefficients D = C_solid / C_liquid
+  double DS = 0.8, DO = 0.001, DH = 1.0, DC = 1e-4, DSi = 1.0, DNi =1.0;
+
+  // If no liquid forms: keep bulk in solid 
+};
+
 double R_hydro(double Rp, void *params); // given the planet test radius, output the radius where mass reaches 0.
 
 hydro* Rloop(vector<PhaseDgm> &Comp, vector<double> Mass_Comp, vector<double> ave_rho, vector<double> Tgap, double P0, bool isothermal, double &Rp, double &Pc, double &Tc);			// First round of iteration.  Input: list of componsations, masses and typical densities of each layers, the temperature discontinuity between each gaps (the last temperature in the list is the planet equilibrium temperature), boolean isothermal determines whether use isothermal temperature profile or self-consistent calculation.  The function iterates planet radius in order to get zero mass at the center.  The suggested planet radius, central pressure and temperature are also returned.
@@ -57,6 +73,12 @@ hydro* Rloop(vector<PhaseDgm> &Comp, vector<double> Mass_Comp, vector<double> av
 int fitting_error(const gsl_vector *x, void *params, gsl_vector *f); // return the fitting error of M, P, and T given by the integrations from both end at half radius.
 
 hydro* fitting_method(vector<PhaseDgm>& Comp, vector<double> M_Comp, vector<double> Tgap, vector<double> ave_rho, double P0, bool isothermal);	// Using the fitting method to integrate the model from both the center and the surface.  Meet at an intermediate mass.  The precedure requires an accurate initial condition, run a Rloop first to determine a good initial condition.
+
+hydro* fitting_method_with_core_partition(
+  vector<PhaseDgm>& Comp, vector<double> M_Comp, vector<double> Tgap,
+  vector<double> ave_rho, double P0, bool isothermal,
+  const CorePartitionOptions& opt
+);
 
 double P_hydro(double Pc, void *params);
 // given the center pressure, output the difference between P0 and surface pressure.
@@ -81,5 +103,6 @@ struct loop_params
   double Rest;
   hydro* model;
 };
+
 
 #endif // HYDRO_H_

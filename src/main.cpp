@@ -76,6 +76,7 @@ int main(int argc, char* argv[])
   double wNi_core=0.0;
   double RCMF_in=-1.0;
   double mantle_Mg_number = -1.0;
+  bool core_partition_flag = false;
 
   Water_sc_Mazevet -> modify_dTdP(dTdP_S_H2OSC);
 
@@ -214,6 +215,7 @@ int main(int argc, char* argv[])
       wC_core = options.GetOptionDouble("wt_fract_C_core");
       wSi_core = options.GetOptionDouble("wt_fract_Si_core");
       wNi_core = options.GetOptionDouble("wt_fract_Ni_core");
+      core_partition_flag = options.GetOptionBool("core_partition_flag");
       Tgap[0]=options.GetOptionDouble("temp_jump_3"); 
       Tgap[1]=options.GetOptionDouble("temp_jump_2");
       Tgap[2]=options.GetOptionDouble("temp_jump_1");
@@ -445,16 +447,19 @@ int main(int argc, char* argv[])
     }
     if (!cmf_note.empty()) cout << "CMF note: " << cmf_note << endl;
 
-    
-    // Effective molar mass matching the mass fraction of lighter elements in the core
-    const double wFe=1.0-wS_core-wO_core-wH_core-wC_core-wSi_core;
-    const double denom = wFe/mFe + wS_core/mS + wO_core/mO + wH_core/mH + wC_core/mC + wSi_core/mSi;
-    const double mu_eff_core = 1.0 / denom;
+    // Core composition bookkeeping:
+    // Treat S, O, H, C, Si, Ni as impurities that both (i) change the effective molar mass used in the Fe EOS
+    // and (ii) depress the Fe melting curve vis xFe.
+    const double wFe   = 1.0 - (wS_core + wO_core + wH_core + wC_core + wSi_core + wNi_core);
+    const double nFe   = wFe / mFe;
+    const double nTot  = nFe + (wS_core/mS) + (wO_core/mO) + (wH_core/mH)
+                          + (wC_core/mC) + (wSi_core/mSi) + (wNi_core/mNi);
+    const double mu_eff_core = 1.0 / nTot;
+    const double XFe         = nFe / nTot;
 
-    // Apply to the Fe core EOS phases you actually use
     Fe_hcp->modifyEOS(5, mu_eff_core);
     Fe_liquid->modifyEOS(5, mu_eff_core);
-
+    set_core_melt_XFe(XFe);
 
     string mantle_warning;
 
@@ -471,8 +476,19 @@ int main(int argc, char* argv[])
     Mcomp[0]=RCMF*Mrock;
     Mcomp[1]=(1-RCMF)*Mrock;
     
-    planet=fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
+    if (!core_partition_flag) {
+      planet = fitting_method(Comp, Mcomp, Tgap, ave_rho, P_surface, false);
+    } else {
+      CorePartitionOptions opt;
+      opt.use_partitioning = true;
+      opt.wS = wS_core; opt.wO = wO_core; opt.wH = wH_core; opt.wC = wC_core; opt.wSi = wSi_core; opt.wNi = wNi_core;
 
+      // pick defaults (or read from cfg)
+      opt.DS = 0.8; opt.DO = 0.001; opt.DH = 1.0; opt.DC=0.001, opt.DSi = 1.0, opt.DNi=1.0;
+      opt.max_iter = 20; opt.relax = 0.4;
+
+      planet = fitting_method_with_core_partition(Comp, Mcomp, Tgap, ave_rho, P_surface, false, opt);
+    }
 
     cout<<"# of shots "<<count_shoot<<", # of total steps "<<count_step<<endl;
     gettimeofday(&end_time, NULL);

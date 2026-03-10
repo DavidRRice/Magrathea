@@ -83,4 +83,9 @@ struct phase_params
 extern PhaseDgm core, core1, mant, mant1, mant2, mant3, mant4, mant5, water, water1, water2, atm, atm1;
 // Atmosphere doesn't support self-consistent phase diagram.  Multiple components with each masses specified have to be constructed in order to use multi-phase atmosphere.
 
+//Function to decrease iron melt temp based on light elements
+void set_core_melt_XFe(double XFe);      // or set_core_melt_wtLE(...)
+
+
+
 #endif	// PHASE_H_

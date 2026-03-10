@@ -1,5 +1,6 @@
 #include "hydro.h"
 #include "EOSlist.h"
+#include "phase.h"
 #include <gsl/gsl_integration.h>
 
 int derivs_m(double x, const double y[], double dydx[], void * params)
@@ -1920,6 +1921,93 @@ hydro* fitting_method(vector<PhaseDgm> &Comp, vector<double> M_Comp, vector<doub
   cout<<endl;
   
   return NULL;
+}
+
+// Helpers for core partitioning
+static inline double clamp01(double x){ return (x<0)?0:((x>1)?1:x); }
+
+// Compute liquid wt% from bulk wt% given liquid fraction fL and partition D = Cs/Cl
+static inline double bulk_to_liq(double w_bulk, double fL, double D)
+{
+  const double denom = fL + (1.0 - fL)*D;
+  return (denom > 0.0) ? (w_bulk / denom) : w_bulk;
+}
+
+hydro* fitting_method_with_core_partition(
+  vector<PhaseDgm>& Comp, vector<double> M_Comp, vector<double> Tgap,
+  vector<double> ave_rho, double P0, bool isothermal,
+  const CorePartitionOptions& opt)
+{
+  // Old behavior: just solve once with whatever global melt setting & EOS settings caller applied.
+  if (!opt.use_partitioning) {
+    return fitting_method(Comp, M_Comp, Tgap, ave_rho, P0, isothermal);
+  }
+
+  const double Mcore = M_Comp[0]* ME;       // grams, core is component 0
+  double Xmetal = 1.0;            // iterate on liquid Fe mole fraction
+
+  hydro* planet = nullptr;
+
+  for (int it = 0; it < opt.max_iter; ++it)
+  {
+    // --- (A) Solve planet with current melt curve factor (via Xmetal) ---
+    set_core_melt_XFe(clamp01(Xmetal));
+
+    if (planet) { delete planet; planet = nullptr; }
+    planet = fitting_method(Comp, M_Comp, Tgap, ave_rho, P0, isothermal);
+    if (!planet) return nullptr;
+
+    // --- (B) Measure liquid fraction in core from phase list ---
+    // liquid if EOS pointer equals Fe_liquid or Fe_liquid2 (expand if needed)
+    double Mliq = 0.0;
+    const int N = planet->getsize();
+    for (int i = 0; i < N-1; ++i) {
+      const double Mi = planet->getM(i), Mj = planet->getM(i+1);
+      if (Mi >= Mcore) break;
+
+      const double shell = std::min(Mj, Mcore) - Mi;
+      EOS* ph = planet->getPhase(i);
+      if (ph == Fe_liquid || ph == Fe_liquid2) Mliq += shell;
+    }
+    const double fL = (Mcore > 0.0) ? clamp01(Mliq / Mcore) : 0.0;
+
+    // --- (C) Partition impurities into liquid (if any liquid); else keep bulk as-is ---
+    const double wS_liq  = (fL>0) ? bulk_to_liq(opt.wS,  fL, opt.DS)  : opt.wS;
+    const double wO_liq  = (fL>0) ? bulk_to_liq(opt.wO,  fL, opt.DO)  : opt.wO;
+    const double wH_liq  = (fL>0) ? bulk_to_liq(opt.wH,  fL, opt.DH)  : opt.wH;
+    const double wC_liq  = (fL>0) ? bulk_to_liq(opt.wC,  fL, opt.DC)  : opt.wC;
+    const double wSi_liq = (fL>0) ? bulk_to_liq(opt.wSi, fL, opt.DSi) : opt.wSi;
+    const double wNi_liq = (fL>0) ? bulk_to_liq(opt.wNi, fL, opt.DNi) : opt.wNi;
+
+    // solid side (needed to set Fe_hcp EOS molar mass consistently)
+    const double wS_sol  = (fL>0) ? opt.DS  * wS_liq  : opt.wS;
+    const double wO_sol  = (fL>0) ? opt.DO  * wO_liq  : opt.wO;
+    const double wH_sol  = (fL>0) ? opt.DH  * wH_liq  : opt.wH;
+    const double wC_sol  = (fL>0) ? opt.DC  * wC_liq  : opt.wC;
+    const double wSi_sol = (fL>0) ? opt.DSi * wSi_liq : opt.wSi;
+    const double wNi_sol = (fL>0) ? opt.DNi * wNi_liq : opt.wNi;
+
+    // --- (D) Update EOS molar mass separately for liquid and solid ---
+    const double wMetal_liq = 1.0 - (wS_liq + wO_liq + wH_liq + wC_liq + wSi_liq + wNi_liq);
+    const double wMetal_sol = 1.0 - (wS_sol + wO_sol + wH_sol + wC_sol + wSi_sol + wNi_sol);
+
+    const double inv_mu_liq = (wMetal_liq/mFe) + (wS_liq/mS) + (wO_liq/mO) + (wH_liq/mH) + (wC_liq/mC) + (wSi_liq/mSi) + (wNi_liq/mNi);
+    const double inv_mu_sol = (wMetal_sol/mFe) + (wS_sol/mS) + (wO_sol/mO) + (wH_sol/mH) + (wC_sol/mC) + (wSi_sol/mSi) + (wNi_sol/mNi);
+
+    Fe_liquid->modifyEOS(5, 1.0/inv_mu_liq);
+    Fe_hcp->modifyEOS(5,    1.0/inv_mu_sol);
+
+    // --- (E) Update Xmetal from LIQUID composition and relax (self-consistent melt depression) ---
+    const double nMetal_liq = (wMetal_liq / mFe); 
+    const double nTot_liq   = inv_mu_liq;         // == Σ(w_i/μ_i)
+    const double Xnew = (nTot_liq > 0.0) ? clamp01(nMetal_liq / nTot_liq) : 1.0;
+
+    const double Xnext = (1.0 - opt.relax)*Xmetal + opt.relax*Xnew;
+    if (fabs(Xnext - Xmetal) < 1e-4) { Xmetal = Xnext; break; }
+    Xmetal = Xnext;
+  }
+
+  return planet; 
 }
 
 double P_hydro(double Pc, void *params)

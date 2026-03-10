@@ -1069,7 +1069,7 @@ bool compute_all_mantle_fractions(double CaMg,
   DEFINE_IDEAL_MIX_WRAPPERS(RwdMix)
   
   // -------------------- Lower mantle, Bridgmanite Region Mixture --------------------
-  static vector<EOS*> comps_BrgMix{Si_Pv, Fe_Perovskite, Stishovite, MgO, B1FeO, Ca_Perovskite, Al_Perovskite};
+  static vector<EOS*> comps_BrgMix{Si_Pv, Fe_Perovskite, Al_Perovskite, Stishovite, MgO, B1FeO, Ca_Perovskite};
   static vector<double> x_BrgMix(7,0);
   DEFINE_IDEAL_MIX_WRAPPERS(BrgMix)
 

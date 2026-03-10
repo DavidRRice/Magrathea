@@ -1,6 +1,23 @@
 #include "phase.h"
 //Conditionals for Phase Diagrams in each layer begin LINE 249
 
+
+static double g_core_XFe = 1.0;   // default pure Fe
+static double g_core_melt_factor = 1.0;
+
+void set_core_melt_XFe(double XFe)
+{
+  // clamp for safety
+  if (XFe <= 0.0) XFe = 1e-12;
+  if (XFe > 1.0)  XFe = 1.0;
+
+  g_core_XFe = XFe;
+
+  // Cryoscopic Equation: (1 - ln(XFe))^(-1)
+  const double denom = 1.0 - log(g_core_XFe);
+  g_core_melt_factor = (denom != 0.0) ? (1.0 / denom) : 1.0;
+}
+
 PhaseDgm::PhaseDgm(string Comp_name, EOS* (*f)(double, double), int k, EOS** phase_name, double *start_pressure)
 {
   Comp_type = Comp_name;
@@ -259,7 +276,15 @@ EOS* find_phase_Fe_default(double P_cgs, double T)
   double P_GPa = P_cgs/1E10;			// convert microbar to GPa
 
   // Default Core
-  if( T > 12.8*P_GPa + 2424 && T > 13.7*P_GPa + 2328)   // melting curve from Dorogokupets et al. 2017, Scientific Reports. fcc and hcp Fe melting curve.
+  const double f = g_core_melt_factor;  // default 1.0, cryoscopic melt factor
+
+  double T_anz   = 3712.0 * pow(1.0 + (P_GPa - 98.5)/161.2, 1.0/1.72); //Anzellini et al. 2013, Science
+  double T_kraus = 5530.0 * pow(1.0 + (P_GPa - 260.0)/293.0, 0.552); //Kraus et al. 2022, Science
+  double T_gonz  = 6469.0 * pow(1.0 + (P_GPa - 300.0)/434.82, 1.0/1.839); //Gonzalez-Cataldo & Militzer 2023, Physal Review Research
+  
+  if ( (P_GPa < 352.44 && T > f*T_anz)
+  || (P_GPa >= 352.44 && P_GPa < 755.62 && T > f*T_kraus)
+  || (P_GPa >= 755.62 && T > f*T_gonz) )
   {  
     if(P_GPa<0.0001 || P_GPa<(T-3020)/110 || T>10000)
       return Fe_liquid2;
