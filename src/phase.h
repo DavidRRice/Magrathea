@@ -3,6 +3,7 @@
 
 #include "EOS.h"
 #include "EOSlist.h"
+#include "mixing.h"
 
 /*
   Available Phase Diagrams

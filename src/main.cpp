@@ -628,6 +628,7 @@ int main(int argc, char* argv[])
   delete Graph_Lowitzer;
   delete FoFayMix; 
   delete OlMix; 
+  delete OlMixCoes;
   delete WdsMix; 
   delete RwdMix;
   delete BrgMix;

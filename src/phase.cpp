@@ -1,4 +1,5 @@
 #include "phase.h"
+
 //Conditionals for Phase Diagrams in each layer begin LINE 249
 
 
@@ -376,7 +377,14 @@ EOS* find_phase_mant_mix(double P_cgs, double T)
     return WdsMix;
   else
   {
-    return OlMix;
+    // If there is no free SiO2 in the upper mantle mixture, don't create a boundary at all.
+    if (!Mixing::upper_mantle_has_free_sio2())
+      return OlMix;
+
+    if (P_GPa > (4.7 + 3.1e-3*T))
+      return OlMix;      // stishovite variant
+    else
+      return OlMixCoes;  // coesite variant
   }
 }
 // ---------------------------------

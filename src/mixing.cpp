@@ -15,6 +15,12 @@ namespace Mixing {
     return true;
   }
 
+  static bool g_upper_mantle_has_free_sio2 = false;
+
+  bool upper_mantle_has_free_sio2()
+  {
+    return g_upper_mantle_has_free_sio2;
+  }
 
   // Simple normalization helper
   //static void normalize(vector<double> &x)
@@ -725,7 +731,7 @@ bool compute_upper_mantle_fractions(double CaMg,
 }
 
 /*
- * middle_out (size 9):
+ * middle_out (size 10):
  *   0: Wadsleyite (Mg)   (or Ringwoodite)
  *   1: Fe-Wadsleyite     (or Fe-Ringwoodite)
  *   2: Stishovite        (SiO2)
@@ -734,14 +740,23 @@ bool compute_upper_mantle_fractions(double CaMg,
  *   5: Pyrope            (Mg3Al2Si3O12)
  *   6: Almandine         (Fe3Al2Si3O12)
  *   7: Grossular         (Ca3Al2Si3O12)
- *   8: Mg-Majorite       (Mg4Si4O12)  [Mg-only; no Fe-majorite]
+ *   8: Mg-Majorite       (Mg4Si4O12)
+ *   9: Fe-Majorite*      (FeSiO3 placeholder via Fe_Akimotoite)
+ *
+ * The middle-mantle stoichiometry is solved in MgSiO3-equivalent units:
+ *   majorite_eq = (Mg,Fe)SiO3
+ *
+ * but mapped to EOS formula units as:
+ *   Mg-majorite EOS units  = Mg-majorite equivalent units / 4
+ *   Fe-majorite EOS units  = Fe-majorite equivalent units
  *
  * Switch logic (after forming Ca/Al garnets):
  *   - Low Si:  Wds + (MgO/FeO), no majorite
- *   - Nominal: Wds + Mg-majorite
- *   - High Si: Wds (minimum needed to host Fe) + Mg-majorite + St
+ *   - Nominal: Wds + majorite_eq
+ *   - High Si: majorite_eq + St, no Wds
  *
- * Assumption: a single common Mg# partitions Fe between Wds, (Py/Alm), and (MgO/FeO).
+ * Assumption: as in the upper mantle, all Fe-Mg solid solutions in this region
+ * share the bulk Mg-number X_Mg = 1/(1+Fe/Mg).
  */
 bool compute_middle_mantle_fractions(double CaMg,
                                      double SiMg,
@@ -749,7 +764,7 @@ bool compute_middle_mantle_fractions(double CaMg,
                                      double FeMg,
                                      vector<double> &middle_out)
 {
-    middle_out.assign(9, 0.0);
+    middle_out.assign(10, 0.0);
 
     if (CaMg < 0.0 || AlMg < 0.0 || FeMg < 0.0 || SiMg <= 0.0)
         return false;
@@ -758,6 +773,9 @@ bool compute_middle_mantle_fractions(double CaMg,
     const double R_Si = SiMg;
     const double R_Al = AlMg;
     const double R_Fe = FeMg;
+
+    const double X_Mg = 1.0 / (1.0 + R_Fe);
+    const double X_Fe = 1.0 - X_Mg;
 
     // Fixed Ca/Al garnets
     double n_Gross = R_Ca / 3.0;                // grossular
@@ -778,75 +796,65 @@ bool compute_middle_mantle_fractions(double CaMg,
     if (rem_cat < 0.0) rem_cat = 0.0;
 
     // Phase pools
-    double n_W  = 0.0;  // total Wds/Rwd formula units: (Mg,Fe)2SiO4
-    double n_Mj = 0.0;  // Mg-majorite formula units (Mg-only): Mg4Si4O12
-    double n_Ox = 0.0;  // (Mg,Fe)O pool
-    double n_St = 0.0;  // SiO2
+    double n_W      = 0.0;  // total Wds/Rwd formula units: (Mg,Fe)2SiO4
+    double n_Mj_eq  = 0.0;  // majorite reservoir in (Mg,Fe)SiO3-equivalent units
+    double n_Ox     = 0.0;  // (Mg,Fe)O pool
+    double n_St     = 0.0;  // SiO2
 
     // Reduced-budget nominal window:
     //   rem_cat/2 <= rem_Si <= rem_cat
+    //
+    // Stoichiometry in equivalent units:
+    //   rem_Si  = n_W + n_Mj_eq + n_St
+    //   rem_cat = 2*n_W + n_Mj_eq + n_Ox
     if (rem_Si < 0.5*rem_cat - EPS) {
         // Low Si: no majorite; Wds + oxides
-        n_W  = rem_Si;
-        n_Mj = 0.0;
-        n_Ox = rem_cat - 2.0*n_W;
-        n_St = 0.0;
+        n_W     = rem_Si;
+        n_Mj_eq = 0.0;
+        n_Ox    = rem_cat - 2.0*n_W;
+        n_St    = 0.0;
     } else if (rem_Si <= rem_cat + EPS) {
-        // Nominal: Wds + Mg-majorite
-        n_W  = rem_cat - rem_Si;
-        n_Mj = 0.5*rem_Si - 0.25*rem_cat;
-        n_Ox = 0.0;
-        n_St = 0.0;
+        // Nominal: Wds + majorite_eq
+        n_W     = rem_cat - rem_Si;
+        n_Mj_eq = 2.0*rem_Si - rem_cat;
+        n_Ox    = 0.0;
+        n_St    = 0.0;
     } else {
-        // High Si: Mg-majorite + St, but keep minimum Wds needed to host Fe (no Fe-majorite)
-        // Require Fe capacity: (1-X_Mg)*(3*n_G + 2*n_W) = R_Fe with X_Mg>=0 -> 3*n_G + 2*n_W >= R_Fe
-        const double n_W_minFe = (std::max)(0.0, (R_Fe - 3.0*n_G) / 2.0);
-
-        // Don't exceed available cations or Si
-        n_W = n_W_minFe;
-        const double n_W_maxCat = 0.5*rem_cat;
-        if (n_W > n_W_maxCat) n_W = n_W_maxCat;
-        if (n_W > rem_Si)     n_W = rem_Si;
-
-        const double cat_left = rem_cat - 2.0*n_W;
-        const double si_left  = rem_Si  - 1.0*n_W;
-        if (cat_left < -EPS || si_left < -EPS) return false;
-
-        n_Mj = 0.25 * (std::max)(0.0, cat_left);  // cations limit majorite in high-Si field
-        // St takes the remaining Si
-        n_St = si_left - 4.0*n_Mj;
-        n_Ox = 0.0;
-
-        if (!enforce_non_negative(n_St)) return false;
+        // High Si: no Wds; majorite_eq + St
+        n_W     = 0.0;
+        n_Mj_eq = rem_cat;
+        n_Ox    = 0.0;
+        n_St    = rem_Si - rem_cat;
     }
 
-    if (!enforce_non_negative(n_W))  return false;
-    if (!enforce_non_negative(n_Mj)) return false;
-    if (!enforce_non_negative(n_Ox)) return false;
-    if (!enforce_non_negative(n_St)) return false;
+    if (!enforce_non_negative(n_W))     return false;
+    if (!enforce_non_negative(n_Mj_eq)) return false;
+    if (!enforce_non_negative(n_Ox))    return false;
+    if (!enforce_non_negative(n_St))    return false;
 
-    // Common Mg# across Wds, Al-garnet, and oxides (majorite is Mg-only)
-    const double D = 3.0*n_G + 2.0*n_W + 1.0*n_Ox;  // total (Mg+Fe) sites that share X_Mg
-    if (D < EPS) return false;
+    // Split pools into endmembers using the bulk Mg#
+    const double n_Wds      = X_Mg * n_W;
+    const double n_FeWds    = X_Fe * n_W;
+    const double n_MgO      = X_Mg * n_Ox;
+    const double n_FeO      = X_Fe * n_Ox;
+    const double n_Py       = X_Mg * n_G;
+    const double n_Alm      = X_Fe * n_G;
 
-    double X_Mg = 1.0 - (R_Fe / D);
-    if (X_Mg < -EPS || X_Mg > 1.0 + EPS) return false;
-    if (X_Mg < 0.0) X_Mg = 0.0;
-    if (X_Mg > 1.0) X_Mg = 1.0;
-    const double X_Fe = 1.0 - X_Mg;
-
-    // Split pools into endmembers
-    const double n_Wds    = X_Mg * n_W;
-    const double n_FeWds  = X_Fe * n_W;
-    const double n_MgO    = X_Mg * n_Ox;
-    const double n_FeO    = X_Fe * n_Ox;
-    const double n_Py     = X_Mg * n_G;
-    const double n_Alm    = X_Fe * n_G;
-    const double n_MgMaj  = n_Mj;     // Mg-only
+    // Majorite reservoir:
+    //   Mg equivalent units -> Mg4Si4O12 EOS formula units by /4
+    //   Fe equivalent units -> FeSiO3 EOS formula units directly
+    const double n_MgMaj_eq   = X_Mg * n_Mj_eq;
+    const double n_FeMaj_eq   = X_Fe * n_Mj_eq;
+    const double n_MgMaj_EOS  = 0.25 * n_MgMaj_eq;
+    const double n_FeMaj_EOS  = n_FeMaj_eq;
 
     // Convert formula-unit moles -> mass fractions
-    const double n[9] = { n_Wds, n_FeWds, n_St, n_MgO, n_FeO, n_Py, n_Alm, n_Gross, n_MgMaj };
-    const double M[9] = {
+    const double n[10] = {
+      n_Wds, n_FeWds, n_St, n_MgO, n_FeO,
+      n_Py, n_Alm, n_Gross, n_MgMaj_EOS, n_FeMaj_EOS
+    };
+
+    const double M[10] = {
       Wds->getmmol(),
       Fe_Wadsleyite->getmmol(),
       Stishovite->getmmol(),
@@ -855,14 +863,15 @@ bool compute_middle_mantle_fractions(double CaMg,
       Pyrope->getmmol(),
       Almandine->getmmol(),
       Grossular->getmmol(),
-      Mg_Majorite->getmmol()
+      Mg_Majorite->getmmol(),
+      Fe_Akimotoite->getmmol()
     };
 
     double mtot = 0.0;
-    for (int i = 0; i < 9; ++i) mtot += n[i] * M[i];
+    for (int i = 0; i < 10; ++i) mtot += n[i] * M[i];
     if (mtot <= 0.0) return false;
 
-    for (int i = 0; i < 9; ++i) middle_out[i] = (n[i] * M[i]) / mtot;
+    for (int i = 0; i < 10; ++i) middle_out[i] = (n[i] * M[i]) / mtot;
 
     return true;
 }
@@ -1058,14 +1067,19 @@ bool compute_all_mantle_fractions(double CaMg,
   static vector<double> x_OlMix(11, 0.0);  // will be filled at runtime
   DEFINE_IDEAL_MIX_WRAPPERS(OlMix)
 
+    // -------------------- Upper mantle, Olivine Region Mixture with Coesite--------------------
+  static vector<EOS*> comps_OlMixCoes{Fo, Fayalite, Enstatite, Ferrosilite, Coesite, MgO, B1FeO, Diopside, Hedenbergite, Pyrope, Almandine};
+  static vector<double> x_OlMixCoes(11, 0.0);  // will be filled at runtime
+  DEFINE_IDEAL_MIX_WRAPPERS(OlMixCoes)
+
   // -------------------- Middle mantle, Wadsleyite Region Mixture --------------------
-  static vector<EOS*> comps_WdsMix{Wds, Fe_Wadsleyite, Stishovite, MgO, B1FeO, Pyrope, Almandine, Grossular, Mg_Majorite};
-  static vector<double> x_WdsMix(9,0);
+  static vector<EOS*> comps_WdsMix{Wds, Fe_Wadsleyite, Stishovite, MgO, B1FeO, Pyrope, Almandine, Grossular, Mg_Majorite, Fe_Akimotoite};
+  static vector<double> x_WdsMix(10,0);
   DEFINE_IDEAL_MIX_WRAPPERS(WdsMix)
 
   // -------------------- Middle mantle, Ringwoodite Region Mixture --------------------
-  static vector<EOS*> comps_RwdMix{Rwd, Fe_Ringwoodite, Stishovite, MgO, B1FeO, Pyrope, Almandine, Grossular, Mg_Majorite};
-  static vector<double> x_RwdMix(9,0);
+  static vector<EOS*> comps_RwdMix{Rwd, Fe_Ringwoodite, Stishovite, MgO, B1FeO, Pyrope, Almandine, Grossular, Mg_Majorite, Fe_Akimotoite};
+  static vector<double> x_RwdMix(10,0);
   DEFINE_IDEAL_MIX_WRAPPERS(RwdMix)
   
   // -------------------- Lower mantle, Bridgmanite Region Mixture --------------------
@@ -1113,9 +1127,17 @@ bool compute_all_mantle_fractions(double CaMg,
 
     // Copy into the static vectors used by the mix wrappers
     if (upper_out.size() == x_OlMix.size())
+    {
         x_OlMix = upper_out;
+        x_OlMixCoes = upper_out;
+    }
     else
         return false;
+
+    // index 4 is the SiO2 slot in {Fo,Fa,En,Fs,SiO2,MgO,FeO,Di,Hd,Py,Alm}
+    constexpr size_t IDX_SIO2 = 4;
+    constexpr double SIO2_ACTIVE_EPS = 1e-10;
+    g_upper_mantle_has_free_sio2 = (x_OlMix[IDX_SIO2] > SIO2_ACTIVE_EPS);
 
     if (middle_out.size() == x_WdsMix.size()){
         x_WdsMix = middle_out;

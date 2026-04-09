@@ -873,6 +873,8 @@ EOS *FoFayMix = new EOS("Fo+Fay",
 
 EOS *OlMix = new EOS("Ol Mix",Mixing::density_OlMix, NULL);   
 
+EOS *OlMixCoes = new EOS("Ol Mix",Mixing::density_OlMixCoes, NULL);  
+
 EOS *WdsMix = new EOS("Wds Mix",Mixing::density_WdsMix, NULL);                    
 
 EOS *RwdMix = new EOS("Rwd Mix",Mixing::density_RwdMix, NULL);     
@@ -889,6 +891,7 @@ struct InitMantleMixes {
   InitMantleMixes() {
     FoFayMix->modify_dTdP(Mixing::dTdP_FoFay);
     OlMix->modify_dTdP(Mixing::dTdP_OlMix);
+    OlMixCoes->modify_dTdP(Mixing::dTdP_OlMixCoes);
     WdsMix->modify_dTdP(Mixing::dTdP_WdsMix);
     RwdMix->modify_dTdP(Mixing::dTdP_RwdMix);
     BrgMix->modify_dTdP(Mixing::dTdP_BrgMix);

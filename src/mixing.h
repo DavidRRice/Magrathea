@@ -46,6 +46,7 @@ namespace Mixing {
   //Declaration of Mixtures in Library
   DECLARE_IDEAL_MIX(FoFay)
   DECLARE_IDEAL_MIX(OlMix)
+  DECLARE_IDEAL_MIX(OlMixCoes)
   DECLARE_IDEAL_MIX(WdsMix)
   DECLARE_IDEAL_MIX(RwdMix)
   DECLARE_IDEAL_MIX(BrgMix)
@@ -116,6 +117,10 @@ namespace Mixing {
                                          double FeMg,
                                          string &warning);
 
+  // True when upper mantle mixture has non-negligible free SiO2 (mass fraction > ~1e-10)
+  bool upper_mantle_has_free_sio2();
+
 } // namespace Mixing
+
 
 #endif // MIXING_H
