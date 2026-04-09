@@ -381,7 +381,7 @@ EOS* find_phase_mant_mix(double P_cgs, double T)
     if (!Mixing::upper_mantle_has_free_sio2())
       return OlMix;
 
-    if (P_GPa > (4.7 + 3.1e-3*T))
+    if (P_GPa > (4.7 + 3.1e-3*T)) // Ono et al. 2017 PEPI
       return OlMix;      // stishovite variant
     else
       return OlMixCoes;  // coesite variant
