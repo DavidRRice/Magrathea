@@ -597,8 +597,12 @@ int main(int argc, char* argv[])
   delete vdW_CO2;
   delete Anorthite;
   delete Spinel;
+  delete Hercynite;
   delete Fayalite;
+  delete Forsterite;
+  delete Mg_Wadsleyite;
   delete Fe_Wadsleyite;
+  delete Mg_Ringwoodite;
   delete Fe_Ringwoodite;
   delete Enstatite;
   delete Ferrosilite;
@@ -616,10 +620,12 @@ int main(int argc, char* argv[])
   delete Stishovite;
   delete Seifertite;
   delete Fe_Post_Perovskite;
-  delete Fe_Perovskite;
+  delete Fe_Bridgmanite;
+  delete Mg_Bridgmanite;
   delete Ca_Perovskite;
-  delete Al_Perovskite;
+  delete Al_Bridgmanite;
   delete Al_Post_Perovskite;
+  delete Mg_Post_Perovskite;
   delete HP_Clinoferrosilite;
   delete Periclase;
   delete Wustite;
