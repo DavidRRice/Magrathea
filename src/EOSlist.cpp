@@ -790,9 +790,9 @@ double Fe_Bridgmanite_array[][2] = {{0,0}, {1,25.32}, {2,271.0}, {3,4.0}, {5,mFe
 EOS *Fe_Bridgmanite = new EOS("Fe-Bridgmanite (Stixrude)", Fe_Bridgmanite_array, sizeof(Fe_Bridgmanite_array)/2/sizeof(Fe_Bridgmanite_array[0][0]));
 
 // -----------------------------------
-// Al-Bridgmanite (albg), AlSiO3, Stixrude & Lithgow-Bertelloni 2024
+// Al-Bridgmanite (albg), Al2O3, Stixrude & Lithgow-Bertelloni 2024
 
-double Al_Bridgmanite_array[][2] = {{0,0}, {1,24.94}, {2,242}, {3,4.1}, {5,mAl+mSi+3*mO}, {7,856}, {8,1.54}, {9,0.8}, {10,0}, {14,5}};
+double Al_Bridgmanite_array[][2] = {{0,0}, {1,24.94}, {2,242}, {3,4.1}, {5,2*mAl+3*mO}, {7,856}, {8,1.54}, {9,0.8}, {10,0}, {14,5}};
 
 EOS *Al_Bridgmanite = new EOS("Al-Bridgmanite (Stixrude)", Al_Bridgmanite_array, sizeof(Al_Bridgmanite_array)/2/sizeof(Al_Bridgmanite_array[0][0]));
 

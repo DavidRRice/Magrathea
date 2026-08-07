@@ -605,7 +605,7 @@ namespace Mixing {
 
   
 /*
- * upper_out (size 11):
+ * upper_out (size 13):
  *   0: Fo          (Mg2SiO4)
  *   1: Fa          (Fe2SiO4)
  *   2: En          (Mg2Si2O6)
@@ -720,6 +720,10 @@ bool compute_upper_mantle_fractions(double CaMg,
     const double n_MgO = X_Mg * n_Ox;
     const double n_FeO = X_Fe * n_Ox;
 
+    // Periclase/Wustite EOSs are stored as Mg4O4 / Fe4O4
+    const double n_MgO_EOS = 0.25 * n_MgO;
+    const double n_FeO_EOS = 0.25 * n_FeO;
+
     const double n_Di  = X_Mg * n_Cpx;
     const double n_Hd  = X_Fe * n_Cpx;
 
@@ -733,13 +737,13 @@ bool compute_upper_mantle_fractions(double CaMg,
       n_Fo, n_Fa,
       n_En, n_Fs,
       n_St,
-      n_MgO, n_FeO,
+      n_MgO_EOS, n_FeO_EOS,
       n_Di, n_Hd,
       n_Py, n_Alm,
       n_Spinel, n_Hercynite
     };
 
-    const double M[11] = {
+    const double M[13] = {
       Forsterite->getmmol(),
       Fayalite->getmmol(),
       Enstatite->getmmol(),
@@ -750,14 +754,16 @@ bool compute_upper_mantle_fractions(double CaMg,
       Diopside->getmmol(),
       Hedenbergite->getmmol(),
       Pyrope->getmmol(),
-      Almandine->getmmol()
+      Almandine->getmmol(),
+      Spinel->getmmol(),
+      Hercynite->getmmol()
     };
 
     double mtot = 0.0;
-    for (int i = 0; i < 11; ++i) mtot += n[i] * M[i];
+    for (int i = 0; i < 13; ++i) mtot += n[i] * M[i];
     if (mtot <= 0.0) return false;
 
-    for (int i = 0; i < 11; ++i) upper_out[i] = (n[i] * M[i]) / mtot;
+    for (int i = 0; i < 13; ++i) upper_out[i] = (n[i] * M[i]) / mtot;
 
     return true;
 }
@@ -869,6 +875,8 @@ bool compute_middle_mantle_fractions(double CaMg,
     const double n_FeWds    = X_Fe * n_W;
     const double n_MgO      = X_Mg * n_Ox;
     const double n_FeO      = X_Fe * n_Ox;
+    const double n_MgO_EOS = 0.25 * n_MgO;
+    const double n_FeO_EOS = 0.25 * n_FeO;  
     const double n_Py       = X_Mg * n_G;
     const double n_Alm      = X_Fe * n_G;
 
@@ -882,7 +890,7 @@ bool compute_middle_mantle_fractions(double CaMg,
 
     // Convert formula-unit moles -> mass fractions
     const double n[10] = {
-      n_Wds, n_FeWds, n_St, n_MgO, n_FeO,
+      n_Wds, n_FeWds, n_St, n_MgO_EOS, n_FeO_EOS,
       n_Py, n_Alm, n_Gross, n_MgMaj_EOS, n_FeMaj_EOS
     };
 
@@ -977,8 +985,10 @@ bool compute_lower_mantle_fractions(double CaMg,
     const double n_PvFe = X_Fe * n_Pv;
     const double n_FpMg = X_Mg * n_Fp;
     const double n_FpFe = X_Fe * n_Fp;
+    const double n_FpMg_EOS = 0.25 * n_FpMg;
+    const double n_FpFe_EOS = 0.25 * n_FpFe;
 
-    const double n[7] = { n_PvMg, n_PvFe, n_AlPv, n_St, n_FpMg, n_FpFe, n_CaPv };
+    const double n[7] = { n_PvMg, n_PvFe, n_AlPv, n_St, n_FpMg_EOS, n_FpFe_EOS, n_CaPv };
     const double M[7] = {
       Mg_Bridgmanite->getmmol(),
       Fe_Bridgmanite->getmmol(),
@@ -1038,7 +1048,7 @@ bool compute_all_mantle_fractions(double CaMg,
     }
 
     // Global minimum Si/Mg to host fixed Ca/Al phases in all mantle layers
-    const double Si_min_upper  = 2.0*R_Ca + 1.5*R_Al;
+    const double Si_min_upper  = 2.0*R_Ca;
     const double Si_min_middle = 1.5*R_Al;
     const double Si_min_lower  = R_Ca;
 
@@ -1120,7 +1130,7 @@ bool compute_all_mantle_fractions(double CaMg,
   DEFINE_IDEAL_MIX_WRAPPERS(BrgMix)
 
   // -------------------- Lower mantle, Post-Perovskite Region Mixture --------------------
-  static vector<EOS*> comps_PPvMix{Mg_Post_Perovskite, Fe_Post_Perovskite, Stishovite, Periclase, Wustite, Ca_Perovskite, Al_Post_Perovskite};
+  static vector<EOS*> comps_PPvMix{Mg_Post_Perovskite, Fe_Post_Perovskite, Al_Post_Perovskite, Stishovite, Periclase, Wustite, Ca_Perovskite};
   static vector<double> x_PPvMix(7,0);
   DEFINE_IDEAL_MIX_WRAPPERS(PPvMix)
  
