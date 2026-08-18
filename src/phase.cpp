@@ -365,12 +365,17 @@ EOS* find_phase_mant_mix(double P_cgs, double T)
   }
   
   double P_GPa = P_cgs/1E10;			// convert microbar to GPa
+
+  const bool use_seif =
+    Mixing::lower_mantle_has_free_sio2() &&
+    P_GPa > 130.0 + 7.49e-3*(T - 6220.0); //Phase transfer curve from Deng et al. 2026, GRL doi:10.1029/2025GL119400
+
   if(P_GPa > 112.5 + 7E-3*T)      // Phase transfer curve from Ono & Oganov 2005, Earth Planet. Sci. Lett. 236, 914
-    return PPvMix;
+    return use_seif ? PPvMixSeif : PPvMix;
   else if (T > 1830*pow(1+P_GPa/4.6, 0.33)) // Melting curve from Belonoshko et al. 2005 Eq. 2
     return Si_Liquid_Wolf;
   else if (P_GPa > 24.3+(-2.12E-4*T)+(-3.49E-7*pow(T, 2))) // Dorogokupets et al. 2015
-    return BrgMix;
+    return use_seif ? BrgMixSeif : BrgMix;
   else if (P_GPa > 8.69+6.05E-3*T)
     return RwdMix;
   else if (P_GPa > 9.45+2.76E-3*T)

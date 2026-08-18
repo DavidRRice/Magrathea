@@ -888,7 +888,7 @@ EOS *FoFayMix = new EOS("Fo+Fay",
 
 EOS *OlMix = new EOS("Ol Mix",Mixing::density_OlMix, NULL);   
 
-EOS *OlMixCoes = new EOS("Ol Mix",Mixing::density_OlMixCoes, NULL);  
+EOS *OlMixCoes = new EOS("Ol/Coes Mix",Mixing::density_OlMixCoes, NULL);  
 
 EOS *WdsMix = new EOS("Wds Mix",Mixing::density_WdsMix, NULL);                    
 
@@ -897,6 +897,10 @@ EOS *RwdMix = new EOS("Rwd Mix",Mixing::density_RwdMix, NULL);
 EOS *BrgMix = new EOS("Brg Mix",Mixing::density_BrgMix, NULL);    
 
 EOS *PPvMix = new EOS("PPv Mix",Mixing::density_PPvMix, NULL); 
+
+EOS *BrgMixSeif = new EOS("Brg/Seif Mix", Mixing::density_BrgMixSeif, NULL);
+
+EOS *PPvMixSeif = new EOS("PPv/Seif Mix", Mixing::density_PPvMixSeif, NULL);
 
 EOS *RockWatMix = new EOS("Rock-Wat Mix",Mixing::density_RockWatMix, NULL); 
 
@@ -911,6 +915,8 @@ struct InitMantleMixes {
     RwdMix->modify_dTdP(Mixing::dTdP_RwdMix);
     BrgMix->modify_dTdP(Mixing::dTdP_BrgMix);
     PPvMix->modify_dTdP(Mixing::dTdP_PPvMix);
+    BrgMixSeif->modify_dTdP(Mixing::dTdP_BrgMixSeif);
+    PPvMixSeif->modify_dTdP(Mixing::dTdP_PPvMixSeif);
     RockWatMix->modify_dTdP(Mixing::dTdP_RockWatMix);
     AtmMix->modify_dTdP(Mixing::dTdP_AtmMix);
   }

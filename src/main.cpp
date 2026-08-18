@@ -639,6 +639,8 @@ int main(int argc, char* argv[])
   delete RwdMix;
   delete BrgMix;
   delete PPvMix;
+  delete BrgMixSeif;
+  delete PPvMixSeif;
   delete RockWatMix;
   delete AtmMix;
   return 0;

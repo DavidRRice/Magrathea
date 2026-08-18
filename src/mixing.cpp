@@ -22,6 +22,13 @@ namespace Mixing {
     return g_upper_mantle_has_free_sio2;
   }
 
+  static bool g_lower_mantle_has_free_sio2 = false;
+
+  bool lower_mantle_has_free_sio2()
+  {
+    return g_lower_mantle_has_free_sio2;
+  }
+
   // Simple normalization helper
   //static void normalize(vector<double> &x)
   //{
@@ -1133,6 +1140,24 @@ bool compute_all_mantle_fractions(double CaMg,
   static vector<EOS*> comps_PPvMix{Mg_Post_Perovskite, Fe_Post_Perovskite, Al_Post_Perovskite, Stishovite, Periclase, Wustite, Ca_Perovskite};
   static vector<double> x_PPvMix(7,0);
   DEFINE_IDEAL_MIX_WRAPPERS(PPvMix)
+
+  // -------------------- Lower mantle, Bridgmanite + Seifertite --------------------
+static vector<EOS*> comps_BrgMixSeif{
+    Mg_Bridgmanite, Fe_Bridgmanite, Al_Bridgmanite,
+    Seifertite,
+    Periclase, Wustite, Ca_Perovskite
+};
+static vector<double> x_BrgMixSeif(7,0);
+DEFINE_IDEAL_MIX_WRAPPERS(BrgMixSeif)
+
+// -------------------- Lower mantle, PPv + Seifertite --------------------
+static vector<EOS*> comps_PPvMixSeif{
+    Mg_Post_Perovskite, Fe_Post_Perovskite, Al_Post_Perovskite,
+    Seifertite,
+    Periclase, Wustite, Ca_Perovskite
+};
+static vector<double> x_PPvMixSeif(7,0);
+DEFINE_IDEAL_MIX_WRAPPERS(PPvMixSeif)
  
   // -------------------- Rock-Water Mix --------------------
   static vector<EOS*> comps_RockWatMix{Fo, H2O_AQUA};
@@ -1187,11 +1212,19 @@ bool compute_all_mantle_fractions(double CaMg,
     else
         return false;
 
-    if (lower_out.size() == x_BrgMix.size()){
-        x_BrgMix = lower_out;
-        x_PPvMix = lower_out;}
+    if (lower_out.size() == x_BrgMix.size())
+    {
+      x_BrgMix     = lower_out;
+      x_BrgMixSeif = lower_out;
+      x_PPvMix     = lower_out;
+      x_PPvMixSeif = lower_out;
+
+      constexpr size_t IDX_LOWER_SIO2 = 3;
+      g_lower_mantle_has_free_sio2 =
+        (lower_out[IDX_LOWER_SIO2] > SIO2_ACTIVE_EPS);
+    }
     else
-        return false;
+      return false;
 
     return true;
   }

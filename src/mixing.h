@@ -51,6 +51,8 @@ namespace Mixing {
   DECLARE_IDEAL_MIX(RwdMix)
   DECLARE_IDEAL_MIX(BrgMix)
   DECLARE_IDEAL_MIX(PPvMix)
+  DECLARE_IDEAL_MIX(BrgMixSeif)
+  DECLARE_IDEAL_MIX(PPvMixSeif)
   DECLARE_IDEAL_MIX(RockWatMix)
   DECLARE_IDEAL_MIX(AtmMix)
 
@@ -119,6 +121,8 @@ namespace Mixing {
 
   // True when upper mantle mixture has non-negligible free SiO2 (mass fraction > ~1e-10)
   bool upper_mantle_has_free_sio2();
+  // True when lower mantle mixture has non-negligible free SiO2 (mass fraction > ~1e-10)
+  bool lower_mantle_has_free_sio2();
 
 } // namespace Mixing
 
